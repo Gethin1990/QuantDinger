@@ -457,20 +457,101 @@ def place_order():
     """
     Place a quick market or limit order.
 
-    Body JSON:
-      credential_id  (int)    — saved exchange credential ID
-      symbol         (str)    — e.g. "BTC/USDT"
-      side           (str)    — "buy" or "sell"
-      order_type     (str)    — "market" or "limit"  (default: market)
-      amount         (float)  — USDT amount (always in USDT, will be converted to base qty)
-      price          (float)  — limit price (required for limit orders)
-      leverage       (int)    — leverage multiplier (default: 1)
-                                - leverage = 1: spot market
-                                - leverage > 1: swap (perpetual futures) market
-      market_type    (str)    — "swap" / "spot" (optional, auto-determined by leverage if not provided)
-      tp_price       (float)  — take-profit price (optional, for record only)
-      sl_price       (float)  — stop-loss price (optional, for record only)
-      source         (str)    — "ai_radar" / "ai_analysis" / "indicator" / "manual"
+    Amount is always specified in USDT and automatically converted to base asset quantity.
+    Leverage = 1 uses spot API; leverage > 1 uses swap (perpetual futures) API.
+
+    ---
+    tags:
+      - Quick Trade
+    security:
+      - BearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - credential_id
+              - symbol
+              - side
+              - amount
+            properties:
+              credential_id:
+                type: integer
+                description: Saved exchange credential ID
+              symbol:
+                type: string
+                description: "Trading pair (e.g. BTC/USDT)"
+              side:
+                type: string
+                enum: [buy, sell]
+                description: Order side
+              order_type:
+                type: string
+                enum: [market, limit]
+                default: market
+                description: Order type
+              amount:
+                type: number
+                description: Order amount in USDT (auto-converted to base qty)
+              price:
+                type: number
+                description: Limit price (required for limit orders)
+              leverage:
+                type: integer
+                default: 1
+                description: "Leverage multiplier (1 = spot, >1 = swap/futures)"
+              market_type:
+                type: string
+                enum: [spot, swap]
+                description: Market type (auto-determined by leverage if omitted)
+              tp_price:
+                type: number
+                description: Take-profit price (for record only)
+              sl_price:
+                type: number
+                description: Stop-loss price (for record only)
+              source:
+                type: string
+                enum: [ai_radar, ai_analysis, indicator, manual]
+                default: manual
+                description: Order source
+              margin_mode:
+                type: string
+                enum: [cross, isolated]
+                description: Margin mode (Binance futures only)
+    responses:
+      200:
+        description: Order placed
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                code:
+                  type: integer
+                msg:
+                  type: string
+                data:
+                  type: object
+                  properties:
+                    trade_id:
+                      type: integer
+                    exchange_order_id:
+                      type: string
+                    filled:
+                      type: number
+                    avg_price:
+                      type: number
+                    status:
+                      type: string
+      400:
+        description: Validation error
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        description: Order failed (includes error_hint for common exchange errors)
     """
     try:
         user_id = g.user_id
@@ -784,7 +865,52 @@ def get_balance():
     """
     Get available balance from exchange.
 
-    Query: credential_id (int), market_type (str, default "swap")
+    ---
+    tags:
+      - Quick Trade
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: credential_id
+        in: query
+        required: true
+        schema:
+          type: integer
+        description: Exchange credential ID
+      - name: market_type
+        in: query
+        schema:
+          type: string
+          enum: [spot, swap]
+          default: swap
+        description: Market type
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                code:
+                  type: integer
+                msg:
+                  type: string
+                data:
+                  type: object
+                  properties:
+                    available:
+                      type: number
+                    total:
+                      type: number
+                    currency:
+                      type: string
+      400:
+        description: Missing credential_id
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     try:
         user_id = g.user_id
@@ -1185,7 +1311,71 @@ def get_position():
     """
     Get current position for a symbol from exchange.
 
-    Query: credential_id (int), symbol (str), market_type (str)
+    ---
+    tags:
+      - Quick Trade
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: credential_id
+        in: query
+        required: true
+        schema:
+          type: integer
+        description: Exchange credential ID
+      - name: symbol
+        in: query
+        required: true
+        schema:
+          type: string
+        description: "Trading pair (e.g. BTC/USDT)"
+      - name: market_type
+        in: query
+        schema:
+          type: string
+          enum: [spot, swap]
+          default: swap
+        description: Market type
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                code:
+                  type: integer
+                msg:
+                  type: string
+                data:
+                  type: object
+                  properties:
+                    positions:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          symbol:
+                            type: string
+                          side:
+                            type: string
+                          size:
+                            type: number
+                          entry_price:
+                            type: number
+                          unrealized_pnl:
+                            type: number
+                          leverage:
+                            type: number
+                          mark_price:
+                            type: number
+      400:
+        description: Missing credential_id or symbol
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     try:
         user_id = g.user_id
@@ -1399,16 +1589,90 @@ def _quick_trade_net_base_qty(
 @login_required
 def close_position():
     """
-    Close an existing position.
-    
-    Body JSON:
-      credential_id  (int)    — saved exchange credential ID
-      symbol         (str)    — e.g. "BTC/USDT"
-      market_type    (str)    — "swap" / "spot" (default: swap)
-      size            (float)  — position size to close (optional, defaults to full position)
-      close_scope    (str)    — "full" (default) or "system_tracked" (swap only: min(position, net from qd_quick_trades))
-      position_side  (str)    — optional "long" / "short"; required when both directions exist for the same symbol
-      source          (str)    — "ai_radar" / "ai_analysis" / "indicator" / "manual"
+    Close an existing position on the exchange.
+
+    ---
+    tags:
+      - Quick Trade
+    security:
+      - BearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - credential_id
+              - symbol
+            properties:
+              credential_id:
+                type: integer
+                description: Saved exchange credential ID
+              symbol:
+                type: string
+                description: "Trading pair (e.g. BTC/USDT)"
+              market_type:
+                type: string
+                enum: [spot, swap]
+                default: swap
+                description: Market type
+              size:
+                type: number
+                description: Position size to close (defaults to full position)
+              close_scope:
+                type: string
+                enum: [full, system_tracked]
+                default: full
+                description: "Close scope: full or system_tracked (swap only, closes net Quick Trade volume)"
+              position_side:
+                type: string
+                enum: [long, short]
+                description: Position side (required when both long and short exist for the symbol)
+              source:
+                type: string
+                enum: [ai_radar, ai_analysis, indicator, manual]
+                default: manual
+                description: Order source
+    responses:
+      200:
+        description: Position closed
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                code:
+                  type: integer
+                msg:
+                  type: string
+                data:
+                  type: object
+                  properties:
+                    trade_id:
+                      type: integer
+                    exchange_order_id:
+                      type: string
+                    filled:
+                      type: number
+                    avg_price:
+                      type: number
+                    closed_size:
+                      type: number
+                    position_side:
+                      type: string
+                    close_scope:
+                      type: string
+                    status:
+                      type: string
+      400:
+        description: Validation error
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      404:
+        description: No position found
+      500:
+        description: Close failed (includes error_hint for common exchange errors)
     """
     try:
         user_id = g.user_id
@@ -1664,7 +1928,79 @@ def get_history():
     """
     Get quick trade history for the current user.
 
-    Query: limit (int, default 50), offset (int, default 0)
+    ---
+    tags:
+      - Quick Trade
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          default: 50
+          maximum: 200
+        description: Maximum number of trades to return
+      - name: offset
+        in: query
+        schema:
+          type: integer
+          default: 0
+        description: Pagination offset
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                code:
+                  type: integer
+                msg:
+                  type: string
+                data:
+                  type: object
+                  properties:
+                    trades:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          id:
+                            type: integer
+                          exchange_id:
+                            type: string
+                          symbol:
+                            type: string
+                          side:
+                            type: string
+                          order_type:
+                            type: string
+                          amount:
+                            type: number
+                          price:
+                            type: number
+                          leverage:
+                            type: integer
+                          market_type:
+                            type: string
+                          status:
+                            type: string
+                          filled_amount:
+                            type: number
+                          avg_fill_price:
+                            type: number
+                          commission:
+                            type: number
+                          source:
+                            type: string
+                          created_at:
+                            type: string
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     try:
         user_id = g.user_id

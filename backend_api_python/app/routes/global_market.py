@@ -110,7 +110,32 @@ def _compute_market_overview():
 @global_market_bp.route("/overview", methods=["GET"])
 @login_required
 def market_overview():
-    """Get global market overview including indices, forex, crypto, and commodities."""
+    """Get global market overview including indices, forex, crypto, and commodities.
+
+    ---
+    tags:
+      - Global Market
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: force
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Force cache refresh ("true" or "1")
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     try:
         force = request.args.get("force", "").lower() in ("true", "1")
         data = cached_or_compute(
@@ -125,7 +150,32 @@ def market_overview():
 @global_market_bp.route("/heatmap", methods=["GET"])
 @login_required
 def market_heatmap():
-    """Get market heatmap data for crypto, stock sectors, forex, and indices."""
+    """Get market heatmap data for crypto, stock sectors, forex, and indices.
+
+    ---
+    tags:
+      - Global Market
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: force
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Force cache refresh ("true" or "1")
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     try:
         force = request.args.get("force", "").lower() in ("true", "1")
         data = cached_or_compute(
@@ -140,7 +190,42 @@ def market_heatmap():
 @global_market_bp.route("/news", methods=["GET"])
 @login_required
 def market_news():
-    """Get financial news from various sources.  Query params: lang ('cn'|'en'|'all')."""
+    """Get financial news from various sources.
+
+    ---
+    tags:
+      - Global Market
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: lang
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+            - cn
+            - en
+            - all
+        description: Language filter for news ("cn", "en", or "all"; default "all")
+      - name: force
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Force cache refresh ("true" or "1")
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     try:
         lang = request.args.get("lang", "all")
         force = request.args.get("force", "").lower() in ("true", "1")
@@ -160,7 +245,32 @@ def market_news():
 @global_market_bp.route("/calendar", methods=["GET"])
 @login_required
 def economic_calendar():
-    """Get economic calendar events with impact indicators."""
+    """Get economic calendar events with impact indicators.
+
+    ---
+    tags:
+      - Global Market
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: force
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Force cache refresh ("true" or "1")
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     try:
         force = request.args.get("force", "").lower() in ("true", "1")
         data = cached_or_compute(
@@ -219,7 +329,32 @@ def _compute_market_sentiment():
 @global_market_bp.route("/sentiment", methods=["GET"])
 @login_required
 def market_sentiment():
-    """Get comprehensive market sentiment indicators."""
+    """Get comprehensive market sentiment indicators.
+
+    ---
+    tags:
+      - Global Market
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: force
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Force cache refresh ("true" or "1")
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     try:
         force = request.args.get("force", "").lower() in ("true", "1")
         data = cached_or_compute(
@@ -234,7 +369,53 @@ def market_sentiment():
 @global_market_bp.route("/adanos-sentiment", methods=["GET"])
 @login_required
 def adanos_market_sentiment():
-    """Get optional Adanos Market Sentiment for selected US stock tickers."""
+    """Get optional Adanos Market Sentiment for selected US stock tickers.
+
+    ---
+    tags:
+      - Global Market
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: tickers
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Comma-separated stock tickers
+      - name: source
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Data source identifier
+      - name: days
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 7
+        description: Number of days for sentiment history
+      - name: force
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Force cache refresh ("true" or "1")
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      400:
+        description: Invalid parameters
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     try:
         tickers = request.args.get("tickers", "")
         source = request.args.get("source")
@@ -304,7 +485,32 @@ def _compute_trading_opportunities():
 @global_market_bp.route("/opportunities", methods=["GET"])
 @login_required
 def trading_opportunities():
-    """Scan for trading opportunities across Crypto, US/CN/HK Stocks, and Forex."""
+    """Scan for trading opportunities across Crypto, US/CN/HK Stocks, and Forex.
+
+    ---
+    tags:
+      - Global Market
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: force
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Force cache refresh ("true" or "1")
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     try:
         force = request.args.get("force", "").lower() in ("true", "1")
         data = cached_or_compute(
@@ -331,7 +537,25 @@ def trading_opportunities():
 @global_market_bp.route("/refresh", methods=["POST"])
 @login_required
 def refresh_data():
-    """Force refresh all market data (clears cache)."""
+    """Force refresh all market data (clears cache).
+
+    ---
+    tags:
+      - Global Market
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Cache cleared successfully
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     try:
         clear_cache()
         return jsonify({"code": 1, "msg": "Cache cleared successfully", "data": None})

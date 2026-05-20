@@ -87,6 +87,70 @@ def issue_token():
     Body fields:
       name, scopes (e.g. "R,B"), markets (csv), instruments (csv),
       paper_only (bool), rate_limit_per_min (int), expires_in_days (int)
+
+    Requires admin JWT (not an agent token).
+
+    ---
+    tags:
+      - Agent V1
+    security:
+      - BearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              name:
+                type: string
+                description: Human-readable token name
+              scopes:
+                type: string
+                description: Comma-separated scopes (R, W, B, T)
+                example: "R,B"
+              markets:
+                type: string
+                description: Comma-separated market allowlist or * for all
+                default: "*"
+              instruments:
+                type: string
+                description: Comma-separated instrument allowlist or * for all
+                default: "*"
+              paper_only:
+                type: boolean
+                default: true
+                description: Whether token is restricted to paper trading
+              rate_limit_per_min:
+                type: integer
+                default: 60
+                description: Rate limit per minute
+              expires_in_days:
+                type: integer
+                description: Token expiry in days (null for no expiry)
+    responses:
+      200:
+        description: Token issued (token value shown once)
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentResponseEnvelope'
+      400:
+        description: Invalid input or unknown scopes
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentErrorResponse'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      403:
+        description: Admin access required or T-scope blocked in SaaS mode
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentErrorResponse'
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     ensure_agent_gateway_schema()
     body, err = get_json_or_400()
@@ -181,7 +245,33 @@ def issue_token():
 @login_required
 @admin_required
 def list_tokens():
-    """List tokens for the calling admin's tenant (no secrets)."""
+    """List tokens for the calling admin's tenant (no secrets).
+
+    Requires admin JWT (not an agent token).
+
+    ---
+    tags:
+      - Agent V1
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: List of agent tokens (no secrets)
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      403:
+        description: Admin access required
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentErrorResponse'
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     ensure_agent_gateway_schema()
     user_id = int(get_current_user_id() or 1)
     with get_db_connection() as db:
@@ -206,7 +296,46 @@ def list_tokens():
 @login_required
 @admin_required
 def revoke_token(token_id: int):
-    """Revoke a token (sets status='revoked'; cannot be re-activated)."""
+    """Revoke a token (sets status='revoked'; cannot be re-activated).
+
+    Requires admin JWT (not an agent token).
+
+    ---
+    tags:
+      - Agent V1
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: token_id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: Token ID to revoke
+    responses:
+      200:
+        description: Token revoked
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      403:
+        description: Admin access required
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentErrorResponse'
+      404:
+        description: Token not found
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentErrorResponse'
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     ensure_agent_gateway_schema()
     user_id = int(get_current_user_id() or 1)
     with get_db_connection() as db:
@@ -227,7 +356,43 @@ def revoke_token(token_id: int):
 @login_required
 @admin_required
 def list_audit():
-    """Recent audit entries for this tenant (admin only)."""
+    """Recent audit entries for this tenant (admin only).
+
+    Requires admin JWT (not an agent token).
+
+    ---
+    tags:
+      - Agent V1
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 500
+          default: 100
+        description: Maximum number of audit entries to return
+    responses:
+      200:
+        description: List of audit entries
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      403:
+        description: Admin access required
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentErrorResponse'
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     ensure_agent_gateway_schema()
     user_id = int(get_current_user_id() or 1)
     try:

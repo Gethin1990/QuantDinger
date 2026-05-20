@@ -145,7 +145,33 @@ def _get_single_price(market: str, symbol: str, force_refresh: bool = False) -> 
 @portfolio_bp.route('/positions', methods=['GET'])
 @login_required
 def get_positions():
-    """Get all manual positions with current prices for the current user."""
+    """
+    Get all manual positions with current prices and PnL.
+
+    ---
+    tags:
+      - Portfolio
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: refresh
+        in: query
+        schema:
+          type: string
+          enum: ["1", "true", "yes"]
+        description: Force refresh prices (skip cache)
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     try:
         user_id = g.user_id
         # Check if force refresh (skip cache)
@@ -250,7 +276,76 @@ def get_positions():
 @portfolio_bp.route('/positions', methods=['POST'])
 @login_required
 def add_position():
-    """Add a new manual position for the current user."""
+    """
+    Add a new manual position.
+
+    Replaces any existing position for the same symbol in the same group.
+
+    ---
+    tags:
+      - Portfolio
+    security:
+      - BearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - market
+              - symbol
+              - quantity
+              - entry_price
+            properties:
+              market:
+                type: string
+                description: "Market category (e.g. Crypto, USStock, Forex)"
+              symbol:
+                type: string
+                description: "Trading symbol (e.g. BTC/USDT, TSLA)"
+              name:
+                type: string
+                description: Display name (auto-resolved if omitted)
+              side:
+                type: string
+                enum: [long, short]
+                default: long
+                description: Position side
+              quantity:
+                type: number
+                description: Position quantity
+              entry_price:
+                type: number
+                description: Average entry price
+              entry_time:
+                type: integer
+                description: Entry timestamp (defaults to now)
+              notes:
+                type: string
+                description: User notes
+              tags:
+                type: array
+                items:
+                  type: string
+                description: Position tags
+              group_name:
+                type: string
+                description: Group name for organizing positions
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      400:
+        description: Validation error
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     try:
         user_id = g.user_id
         data = request.get_json() or {}
@@ -320,7 +415,64 @@ def add_position():
 @portfolio_bp.route('/positions/<int:position_id>', methods=['PUT'])
 @login_required
 def update_position(position_id):
-    """Update an existing position for the current user."""
+    """
+    Update an existing position.
+
+    ---
+    tags:
+      - Portfolio
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: position_id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: Position ID to update
+    requestBody:
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              name:
+                type: string
+                description: Display name
+              quantity:
+                type: number
+                description: Position quantity (must be positive)
+              entry_price:
+                type: number
+                description: Entry price (must be positive)
+              entry_time:
+                type: integer
+                description: Entry timestamp
+              notes:
+                type: string
+                description: User notes
+              tags:
+                type: array
+                items:
+                  type: string
+                description: Position tags
+              group_name:
+                type: string
+                description: Group name
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      400:
+        description: Validation error or no fields to update
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     try:
         user_id = g.user_id
         data = request.get_json() or {}
@@ -389,7 +541,33 @@ def update_position(position_id):
 @portfolio_bp.route('/positions/<int:position_id>', methods=['DELETE'])
 @login_required
 def delete_position(position_id):
-    """Delete a position for the current user."""
+    """
+    Delete a position.
+
+    ---
+    tags:
+      - Portfolio
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: position_id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: Position ID to delete
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     try:
         user_id = g.user_id
         with get_db_connection() as db:
@@ -411,7 +589,33 @@ def delete_position(position_id):
 @portfolio_bp.route('/summary', methods=['GET'])
 @login_required
 def get_portfolio_summary():
-    """Get portfolio summary with total value, PnL, and market distribution for the current user."""
+    """
+    Get portfolio summary with total value, PnL, and market distribution.
+
+    ---
+    tags:
+      - Portfolio
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: refresh
+        in: query
+        schema:
+          type: string
+          enum: ["1", "true", "yes"]
+        description: Force refresh prices (skip cache)
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     try:
         user_id = g.user_id
         # Check if force refresh
@@ -533,7 +737,26 @@ def get_portfolio_summary():
 @portfolio_bp.route('/monitors', methods=['GET'])
 @login_required
 def get_monitors():
-    """Get all position monitors for the current user."""
+    """
+    Get all position monitors for the current user.
+
+    ---
+    tags:
+      - Portfolio
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     try:
         user_id = g.user_id
         with get_db_connection() as db:
@@ -579,7 +802,62 @@ def get_monitors():
 @portfolio_bp.route('/monitors', methods=['POST'])
 @login_required
 def add_monitor():
-    """Add a new position monitor for the current user."""
+    """
+    Add a new position monitor.
+
+    Runs an initial analysis immediately after creation in the background.
+
+    ---
+    tags:
+      - Portfolio
+    security:
+      - BearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - name
+            properties:
+              name:
+                type: string
+                description: Monitor name
+              position_ids:
+                type: array
+                items:
+                  type: integer
+                description: Array of position IDs to monitor
+              monitor_type:
+                type: string
+                enum: [ai, price_alert, pnl_alert]
+                default: ai
+                description: Monitor type
+              config:
+                type: object
+                description: Monitor configuration (e.g. run_interval_minutes)
+              notification_config:
+                type: object
+                description: Notification delivery configuration
+              is_active:
+                type: boolean
+                default: true
+                description: Whether monitor is active
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      400:
+        description: Missing monitor name
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     try:
         user_id = g.user_id
         data = request.get_json() or {}
@@ -647,7 +925,62 @@ def add_monitor():
 @portfolio_bp.route('/monitors/<int:monitor_id>', methods=['PUT'])
 @login_required
 def update_monitor(monitor_id):
-    """Update an existing monitor for the current user."""
+    """
+    Update an existing monitor.
+
+    ---
+    tags:
+      - Portfolio
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: monitor_id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: Monitor ID to update
+    requestBody:
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              name:
+                type: string
+                description: Monitor name
+              position_ids:
+                type: array
+                items:
+                  type: integer
+                description: Array of position IDs to monitor
+              monitor_type:
+                type: string
+                enum: [ai, price_alert, pnl_alert]
+                description: Monitor type
+              config:
+                type: object
+                description: Monitor configuration
+              notification_config:
+                type: object
+                description: Notification delivery configuration
+              is_active:
+                type: boolean
+                description: Whether monitor is active
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      400:
+        description: No fields to update
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     try:
         user_id = g.user_id
         data = request.get_json() or {}
@@ -718,7 +1051,33 @@ def update_monitor(monitor_id):
 @portfolio_bp.route('/monitors/<int:monitor_id>', methods=['DELETE'])
 @login_required
 def delete_monitor(monitor_id):
-    """Delete a monitor for the current user."""
+    """
+    Delete a monitor.
+
+    ---
+    tags:
+      - Portfolio
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: monitor_id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: Monitor ID to delete
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     try:
         user_id = g.user_id
         with get_db_connection() as db:
@@ -740,11 +1099,50 @@ def delete_monitor(monitor_id):
 @portfolio_bp.route('/monitors/<int:monitor_id>/run', methods=['POST'])
 @login_required
 def run_monitor_now(monitor_id):
-    """Manually trigger a monitor to run immediately.
-    
+    """
+    Manually trigger a monitor to run immediately.
+
     Supports two modes:
-    - async=true (default): Returns immediately, runs in background, notifies via notification system
-    - async=false: Waits for completion and returns result (may timeout for large portfolios)
+    - async=true (default): Returns immediately, runs in background
+    - async=false: Waits for completion and returns result
+
+    ---
+    tags:
+      - Portfolio
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: monitor_id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: Monitor ID to run
+    requestBody:
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              language:
+                type: string
+                enum: [zh-CN, en-US]
+                description: Override language for AI analysis output
+              async:
+                type: boolean
+                default: true
+                description: Run asynchronously (true) or synchronously (false)
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     try:
         from app.services.portfolio_monitor import run_single_monitor
@@ -805,7 +1203,26 @@ def run_monitor_now(monitor_id):
 @portfolio_bp.route('/alerts', methods=['GET'])
 @login_required
 def get_alerts():
-    """Get all position alerts for the current user."""
+    """
+    Get all position alerts for the current user.
+
+    ---
+    tags:
+      - Portfolio
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     try:
         user_id = g.user_id
         with get_db_connection() as db:
@@ -858,7 +1275,73 @@ def get_alerts():
 @portfolio_bp.route('/alerts', methods=['POST'])
 @login_required
 def add_alert():
-    """Add a new position alert for the current user."""
+    """
+    Add a new position alert.
+
+    If an alert already exists for the same position, it will be updated instead.
+
+    ---
+    tags:
+      - Portfolio
+    security:
+      - BearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - market
+              - symbol
+              - alert_type
+              - threshold
+            properties:
+              position_id:
+                type: integer
+                description: Associated position ID (optional, for symbol-level alerts)
+              market:
+                type: string
+                description: Market category
+              symbol:
+                type: string
+                description: Trading symbol
+              alert_type:
+                type: string
+                enum: [price_above, price_below, pnl_above, pnl_below]
+                default: price_above
+                description: Alert trigger type
+              threshold:
+                type: number
+                description: Alert threshold value
+              notification_config:
+                type: object
+                description: Notification delivery configuration
+              is_active:
+                type: boolean
+                default: true
+                description: Whether alert is active
+              repeat_interval:
+                type: integer
+                default: 0
+                description: Repeat interval in seconds (0 = once)
+              notes:
+                type: string
+                description: User notes
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      400:
+        description: Validation error
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     try:
         user_id = g.user_id
         data = request.get_json() or {}
@@ -953,7 +1436,60 @@ def add_alert():
 @portfolio_bp.route('/alerts/<int:alert_id>', methods=['PUT'])
 @login_required
 def update_alert(alert_id):
-    """Update an existing alert for the current user."""
+    """
+    Update an existing alert.
+
+    ---
+    tags:
+      - Portfolio
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: alert_id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: Alert ID to update
+    requestBody:
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              alert_type:
+                type: string
+                enum: [price_above, price_below, pnl_above, pnl_below]
+                description: Alert trigger type
+              threshold:
+                type: number
+                description: Alert threshold value
+              notification_config:
+                type: object
+                description: Notification delivery configuration
+              is_active:
+                type: boolean
+                description: Whether alert is active (resets triggered state when re-activated)
+              repeat_interval:
+                type: integer
+                description: Repeat interval in seconds (0 = once)
+              notes:
+                type: string
+                description: User notes
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      400:
+        description: No fields to update
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     try:
         user_id = g.user_id
         data = request.get_json() or {}
@@ -1016,7 +1552,33 @@ def update_alert(alert_id):
 @portfolio_bp.route('/alerts/<int:alert_id>', methods=['DELETE'])
 @login_required
 def delete_alert(alert_id):
-    """Delete an alert for the current user."""
+    """
+    Delete an alert.
+
+    ---
+    tags:
+      - Portfolio
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: alert_id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: Alert ID to delete
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     try:
         user_id = g.user_id
         with get_db_connection() as db:
@@ -1040,7 +1602,26 @@ def delete_alert(alert_id):
 @portfolio_bp.route('/groups', methods=['GET'])
 @login_required
 def get_groups():
-    """Get list of all groups with position counts for the current user."""
+    """
+    Get list of all groups with position counts.
+
+    ---
+    tags:
+      - Portfolio
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     try:
         user_id = g.user_id
         with get_db_connection() as db:
@@ -1092,7 +1673,43 @@ def get_groups():
 @portfolio_bp.route('/groups/rename', methods=['POST'])
 @login_required
 def rename_group():
-    """Rename a group for the current user."""
+    """
+    Rename a position group.
+
+    ---
+    tags:
+      - Portfolio
+    security:
+      - BearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - old_name
+            properties:
+              old_name:
+                type: string
+                description: Current group name
+              new_name:
+                type: string
+                description: New group name (empty string to ungroup)
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      400:
+        description: Missing old_name
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     try:
         user_id = g.user_id
         data = request.get_json() or {}

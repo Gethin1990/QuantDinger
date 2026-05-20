@@ -15,8 +15,31 @@ ai_chat_bp = Blueprint('ai_chat', __name__)
 @ai_chat_bp.route('/chat/message', methods=['POST'])
 def chat_message():
     """
-    Minimal placeholder for legacy chat.
-    Return a friendly message instead of 404, so the UI can evolve gradually.
+    Send a chat message (placeholder).
+
+    ---
+    tags:
+      - AI Chat
+    requestBody:
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              message:
+                type: string
+                description: Chat message text
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      400:
+        description: Missing message
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     data = request.get_json() or {}
     msg = (data.get('message') or '').strip()
@@ -34,13 +57,43 @@ def chat_message():
 
 @ai_chat_bp.route('/chat/history', methods=['GET'])
 def get_chat_history():
-    """Return empty history (compatibility stub)."""
+    """
+    Get chat history (compatibility stub).
+
+    ---
+    tags:
+      - AI Chat
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     return jsonify({'code': 1, 'msg': 'success', 'data': []})
 
 
 @ai_chat_bp.route('/chat/history/save', methods=['POST'])
 def save_chat_history():
-    """No-op save (compatibility stub)."""
+    """
+    Save chat history (compatibility stub).
+
+    ---
+    tags:
+      - AI Chat
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     return jsonify({'code': 1, 'msg': 'success', 'data': None})
 
 

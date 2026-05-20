@@ -252,7 +252,37 @@ def _load_templates():
 @strategy_bp.route('/templates', methods=['GET'])
 @login_required
 def list_strategy_templates():
-    """Return pre-built strategy templates for one-click import."""
+    """
+    Return pre-built strategy templates for one-click import.
+
+    ---
+    tags:
+      - Strategy
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: category
+        in: query
+        schema:
+          type: string
+        description: Filter templates by category
+      - name: difficulty
+        in: query
+        schema:
+          type: string
+        description: Filter templates by difficulty level
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     templates = _load_templates()
     category = request.args.get('category')
     difficulty = request.args.get('difficulty')
@@ -266,7 +296,35 @@ def list_strategy_templates():
 @strategy_bp.route('/templates/<key>', methods=['GET'])
 @login_required
 def get_strategy_template(key):
-    """Return a single strategy template by key."""
+    """
+    Return a single strategy template by key.
+
+    ---
+    tags:
+      - Strategy
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: key
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Template unique key
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      404:
+        description: Template not found
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     templates = _load_templates()
     for t in templates:
         if t.get('key') == key:
@@ -277,7 +335,26 @@ def get_strategy_template(key):
 @strategy_bp.route('/bots/grid-script', methods=['GET'])
 @login_required
 def get_grid_bot_script():
-    """Canonical grid bot ScriptStrategy source (adaptive bounds + waterfall aware)."""
+    """
+    Get canonical grid bot ScriptStrategy source (adaptive bounds + waterfall aware).
+
+    ---
+    tags:
+      - Strategy
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     from app.services.bot_scripts.grid_template import build_grid_bot_script
 
     return jsonify({'code': 1, 'msg': 'success', 'data': {'script': build_grid_bot_script()}})
@@ -307,6 +384,23 @@ def get_backtest_service() -> BacktestService:
 def list_strategies():
     """
     List strategies for the current user.
+
+    ---
+    tags:
+      - Strategy
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     try:
         user_id = g.user_id
@@ -321,6 +415,37 @@ def list_strategies():
 @strategy_bp.route('/strategies/detail', methods=['GET'])
 @login_required
 def get_strategy_detail():
+    """
+    Get strategy detail by ID.
+
+    ---
+    tags:
+      - Strategy
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: id
+        in: query
+        required: true
+        schema:
+          type: integer
+        description: Strategy ID
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      400:
+        description: Missing strategy id parameter
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      404:
+        description: Strategy not found
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     try:
         user_id = g.user_id
         strategy_id = request.args.get('id', type=int)
@@ -339,6 +464,55 @@ def get_strategy_detail():
 @strategy_bp.route('/strategies/backtest', methods=['POST'])
 @login_required
 def run_strategy_backtest():
+    """
+    Run a backtest for a strategy.
+
+    ---
+    tags:
+      - Strategy
+    security:
+      - BearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - strategyId
+              - startDate
+              - endDate
+            properties:
+              strategyId:
+                type: integer
+                description: Strategy ID to backtest
+              startDate:
+                type: string
+                format: date
+                description: Backtest start date (YYYY-MM-DD)
+              endDate:
+                type: string
+                format: date
+                description: Backtest end date (YYYY-MM-DD)
+              overrideConfig:
+                type: object
+                description: Optional config overrides for the backtest
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      400:
+        description: Validation error (missing params, range exceeds limit)
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      404:
+        description: Strategy not found
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     try:
         payload = request.get_json() or {}
         user_id = g.user_id
@@ -453,6 +627,68 @@ def run_strategy_backtest():
 @strategy_bp.route('/strategies/backtest/history', methods=['GET'])
 @login_required
 def get_strategy_backtest_history():
+    """
+    Get backtest run history for a strategy.
+
+    ---
+    tags:
+      - Strategy
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: strategyId
+        in: query
+        required: true
+        schema:
+          type: integer
+        description: Strategy ID
+      - name: id
+        in: query
+        schema:
+          type: integer
+        description: Alternative strategy ID parameter
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          default: 50
+          maximum: 200
+        description: Maximum number of runs to return
+      - name: offset
+        in: query
+        schema:
+          type: integer
+          default: 0
+        description: Pagination offset
+      - name: symbol
+        in: query
+        schema:
+          type: string
+        description: Filter by symbol
+      - name: market
+        in: query
+        schema:
+          type: string
+        description: Filter by market
+      - name: timeframe
+        in: query
+        schema:
+          type: string
+        description: Filter by timeframe
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      400:
+        description: Missing strategyId
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     try:
         user_id = g.user_id
         strategy_id = int(request.args.get('strategyId') or request.args.get('id') or 0)
@@ -483,6 +719,37 @@ def get_strategy_backtest_history():
 @strategy_bp.route('/strategies/backtest/get', methods=['GET'])
 @login_required
 def get_strategy_backtest_run():
+    """
+    Get a single backtest run by ID.
+
+    ---
+    tags:
+      - Strategy
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: runId
+        in: query
+        required: true
+        schema:
+          type: integer
+        description: Backtest run ID
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      400:
+        description: Missing runId
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      404:
+        description: Run not found
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     try:
         user_id = g.user_id
         run_id = int(request.args.get('runId') or 0)
@@ -501,6 +768,33 @@ def get_strategy_backtest_run():
 @strategy_bp.route('/strategies/create', methods=['POST'])
 @login_required
 def create_strategy():
+    """
+    Create a new trading strategy.
+
+    ---
+    tags:
+      - Strategy
+    security:
+      - BearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            description: Strategy configuration fields (strategy_type defaults to IndicatorStrategy)
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     try:
         user_id = g.user_id
         payload = request.get_json() or {}
@@ -519,12 +813,45 @@ def create_strategy():
 @login_required
 def batch_create_strategies():
     """
-    Batch create strategies (multiple symbols)
-    
-    Request body:
-        strategy_name: Base strategy name
-        symbols: Array of symbols, e.g. ["Crypto:BTC/USDT", "Crypto:ETH/USDT"]
-        ... other strategy config
+    Batch create strategies for multiple symbols.
+
+    ---
+    tags:
+      - Strategy
+    security:
+      - BearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              strategy_name:
+                type: string
+                description: Base strategy name
+              symbols:
+                type: array
+                items:
+                  type: string
+                description: "Array of symbols, e.g. ['Crypto:BTC/USDT', 'Crypto:ETH/USDT']"
+              strategy_type:
+                type: string
+                description: Strategy type (defaults to IndicatorStrategy)
+            required:
+              - strategy_name
+              - symbols
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     try:
         user_id = g.user_id
@@ -556,12 +883,41 @@ def batch_create_strategies():
 @login_required
 def batch_start_strategies():
     """
-    Batch start strategies
-    
-    Request body:
-        strategy_ids: Array of strategy IDs
-        or
-        strategy_group_id: Strategy group ID
+    Batch start multiple strategies.
+
+    ---
+    tags:
+      - Strategy
+    security:
+      - BearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              strategy_ids:
+                type: array
+                items:
+                  type: integer
+                description: Array of strategy IDs to start
+              strategy_group_id:
+                type: integer
+                description: Strategy group ID (alternative to strategy_ids)
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      400:
+        description: Missing strategy IDs
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     try:
         user_id = g.user_id
@@ -602,12 +958,41 @@ def batch_start_strategies():
 @login_required
 def batch_stop_strategies():
     """
-    Batch stop strategies
-    
-    Request body:
-        strategy_ids: Array of strategy IDs
-        or
-        strategy_group_id: Strategy group ID
+    Batch stop multiple strategies.
+
+    ---
+    tags:
+      - Strategy
+    security:
+      - BearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              strategy_ids:
+                type: array
+                items:
+                  type: integer
+                description: Array of strategy IDs to stop
+              strategy_group_id:
+                type: integer
+                description: Strategy group ID (alternative to strategy_ids)
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      400:
+        description: Missing strategy IDs
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     try:
         user_id = g.user_id
@@ -647,12 +1032,41 @@ def batch_stop_strategies():
 @login_required
 def batch_delete_strategies():
     """
-    Batch delete strategies
-    
-    Request body:
-        strategy_ids: Array of strategy IDs
-        or
-        strategy_group_id: Strategy group ID
+    Batch delete multiple strategies.
+
+    ---
+    tags:
+      - Strategy
+    security:
+      - BearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              strategy_ids:
+                type: array
+                items:
+                  type: integer
+                description: Array of strategy IDs to delete
+              strategy_group_id:
+                type: integer
+                description: Strategy group ID (alternative to strategy_ids)
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      400:
+        description: Missing strategy IDs
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     try:
         user_id = g.user_id
@@ -691,6 +1105,44 @@ def batch_delete_strategies():
 @strategy_bp.route('/strategies/update', methods=['PUT'])
 @login_required
 def update_strategy():
+    """
+    Update an existing strategy.
+
+    ---
+    tags:
+      - Strategy
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: id
+        in: query
+        required: true
+        schema:
+          type: integer
+        description: Strategy ID to update
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            description: Fields to update
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      400:
+        description: Missing strategy id parameter
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      404:
+        description: Strategy not found
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     try:
         user_id = g.user_id
         strategy_id = request.args.get('id', type=int)
@@ -710,6 +1162,35 @@ def update_strategy():
 @strategy_bp.route('/strategies/delete', methods=['DELETE'])
 @login_required
 def delete_strategy():
+    """
+    Delete a strategy by ID.
+
+    ---
+    tags:
+      - Strategy
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: id
+        in: query
+        required: true
+        schema:
+          type: integer
+        description: Strategy ID to delete
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      400:
+        description: Missing strategy id parameter
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     try:
         user_id = g.user_id
         strategy_id = request.args.get('id', type=int)
@@ -726,7 +1207,37 @@ def delete_strategy():
 @strategy_bp.route('/strategies/trades', methods=['GET'])
 @login_required
 def get_trades():
-    """Get trade records for the current user's strategy."""
+    """
+    Get trade records for a strategy.
+
+    ---
+    tags:
+      - Strategy
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: id
+        in: query
+        required: true
+        schema:
+          type: integer
+        description: Strategy ID
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      400:
+        description: Missing strategy id parameter
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      404:
+        description: Strategy not found
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     try:
         user_id = g.user_id
         strategy_id = request.args.get('id', type=int)
@@ -788,11 +1299,46 @@ def get_trades():
 @strategy_bp.route('/strategies/dry-run-deviation', methods=['GET'])
 @login_required
 def get_dry_run_deviation():
-    """Quantify how far live fills drifted from backtest signal closes.
+    """
+    Quantify how far live fills drifted from backtest signal closes.
 
     For every recorded trade the service rebuilds the prior closed bar (the
     one a backtest would have used as the decision price) and computes per-
     trade slippage / latency, plus a summary verdict.
+
+    ---
+    tags:
+      - Strategy
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: id
+        in: query
+        required: true
+        schema:
+          type: integer
+        description: Strategy ID
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          default: 200
+          minimum: 20
+          maximum: 1000
+        description: Maximum number of trades to analyze
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      400:
+        description: Missing strategy id parameter
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     try:
         user_id = int(g.user_id)
@@ -818,7 +1364,37 @@ def get_dry_run_deviation():
 @strategy_bp.route('/strategies/positions', methods=['GET'])
 @login_required
 def get_positions():
-    """Get position records for the current user's strategy."""
+    """
+    Get position records for a strategy with live price and PnL.
+
+    ---
+    tags:
+      - Strategy
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: id
+        in: query
+        required: true
+        schema:
+          type: integer
+        description: Strategy ID
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      400:
+        description: Missing strategy id parameter
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      404:
+        description: Strategy not found
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     try:
         user_id = g.user_id
         strategy_id = request.args.get('id', type=int)
@@ -993,7 +1569,37 @@ def _build_strategy_equity_curve(user_id: int, strategy_id: int):
 @strategy_bp.route('/strategies/equityCurve', methods=['GET'])
 @login_required
 def get_equity_curve():
-    """Get equity curve for the current user's strategy."""
+    """
+    Get equity curve data for a strategy.
+
+    ---
+    tags:
+      - Strategy
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: id
+        in: query
+        required: true
+        schema:
+          type: integer
+        description: Strategy ID
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      400:
+        description: Missing strategy id parameter
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      404:
+        description: Strategy not found
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     try:
         user_id = g.user_id
         strategy_id = request.args.get('id', type=int)
@@ -1018,10 +1624,35 @@ def get_equity_curve():
 @login_required
 def stop_strategy():
     """
-    Stop a strategy for the current user.
-    
-    Params:
-        id: Strategy ID
+    Stop a running strategy.
+
+    ---
+    tags:
+      - Strategy
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: id
+        in: query
+        required: true
+        schema:
+          type: integer
+        description: Strategy ID to stop
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      400:
+        description: Missing strategy id or AI strategy not supported
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      404:
+        description: Strategy not found
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     try:
         user_id = g.user_id
@@ -1072,10 +1703,35 @@ def stop_strategy():
 @login_required
 def start_strategy():
     """
-    Start a strategy for the current user.
-    
-    Params:
-        id: Strategy ID
+    Start a stopped strategy.
+
+    ---
+    tags:
+      - Strategy
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: id
+        in: query
+        required: true
+        schema:
+          type: integer
+        description: Strategy ID to start
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      400:
+        description: Missing strategy id or AI strategy not supported
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      404:
+        description: Strategy not found
+      500:
+        description: Failed to start strategy executor
     """
     try:
         user_id = g.user_id
@@ -1137,10 +1793,34 @@ def start_strategy():
 @login_required
 def test_connection():
     """
-    Test exchange connection.
-    
-    Request body:
-        exchange_config: Exchange configuration (may contain credential_id or inline keys)
+    Test exchange connection with provided configuration.
+
+    ---
+    tags:
+      - Strategy
+    security:
+      - BearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              exchange_config:
+                type: object
+                description: Exchange configuration (may contain credential_id or inline api_key/secret_key)
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     try:
         data = request.get_json() or {}
@@ -1230,10 +1910,34 @@ def test_connection():
 @login_required
 def get_symbols():
     """
-    Get exchange trading pairs list.
-    
-    Request body:
-        exchange_config: Exchange configuration
+    Get available trading pairs from an exchange.
+
+    ---
+    tags:
+      - Strategy
+    security:
+      - BearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              exchange_config:
+                type: object
+                description: Exchange configuration
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     try:
         data = request.get_json() or {}
@@ -1275,7 +1979,38 @@ def get_symbols():
 @login_required
 def preview_compile():
     """
-    Preview compiled strategy result.
+    Preview compiled strategy result by running a quick backtest.
+
+    ---
+    tags:
+      - Strategy
+    security:
+      - BearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              config:
+                type: object
+                description: Strategy configuration object (symbol, timeframe, etc.)
+            required:
+              - config
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      400:
+        description: Missing config or compilation/execution failed
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     try:
         data = request.get_json() or {}
@@ -1322,12 +2057,42 @@ def preview_compile():
 @login_required
 def get_strategy_notifications():
     """
-    Strategy signal notifications for the current user.
+    Get strategy signal notifications for the current user.
 
-    Query:
-      - id: strategy id (optional)
-      - limit: default 50, max 200
-      - since_id: return rows with id > since_id (optional)
+    ---
+    tags:
+      - Strategy
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: id
+        in: query
+        schema:
+          type: integer
+        description: Filter by strategy ID (optional)
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          default: 50
+          maximum: 200
+        description: Maximum number of notifications to return
+      - name: since_id
+        in: query
+        schema:
+          type: integer
+        description: Return only rows with id > since_id
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     try:
         user_id = g.user_id
@@ -1419,7 +2184,25 @@ def get_strategy_notifications():
 def get_unread_notification_count():
     """
     Get unread notification count for the current user.
+
     Used by frontend header badge (cap at 99+ on UI).
+
+    ---
+    tags:
+      - Strategy
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     try:
         user_id = g.user_id
@@ -1464,7 +2247,40 @@ def get_unread_notification_count():
 @strategy_bp.route('/strategies/notifications/read', methods=['POST'])
 @login_required
 def mark_notification_read():
-    """Mark a single notification as read for the current user."""
+    """
+    Mark a single notification as read.
+
+    ---
+    tags:
+      - Strategy
+    security:
+      - BearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - id
+            properties:
+              id:
+                type: integer
+                description: Notification ID to mark as read
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      400:
+        description: Missing id
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     try:
         user_id = g.user_id
         data = request.get_json(force=True, silent=True) or {}
@@ -1497,7 +2313,26 @@ def mark_notification_read():
 @strategy_bp.route('/strategies/notifications/read-all', methods=['POST'])
 @login_required
 def mark_all_notifications_read():
-    """Mark all notifications as read for the current user."""
+    """
+    Mark all notifications as read for the current user.
+
+    ---
+    tags:
+      - Strategy
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     try:
         user_id = g.user_id
         with get_db_connection() as db:
@@ -1522,7 +2357,26 @@ def mark_all_notifications_read():
 @strategy_bp.route('/strategies/notifications/clear', methods=['DELETE'])
 @login_required
 def clear_notifications():
-    """Clear all notifications for the current user."""
+    """
+    Clear all notifications for the current user.
+
+    ---
+    tags:
+      - Strategy
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     try:
         user_id = g.user_id
         with get_db_connection() as db:
@@ -1549,7 +2403,51 @@ def clear_notifications():
 @strategy_bp.route('/strategies/verify-code', methods=['POST'])
 @login_required
 def verify_strategy_code():
-    """Verify script strategy code syntax and safety."""
+    """
+    Verify script strategy code syntax and safety.
+
+    ---
+    tags:
+      - Strategy
+    security:
+      - BearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - code
+            properties:
+              code:
+                type: string
+                description: Python strategy code to validate
+    responses:
+      200:
+        description: Validation result (success field indicates pass/fail)
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                message:
+                  type: string
+                error_type:
+                  type: string
+                details:
+                  type: string
+                hints:
+                  type: array
+                  items:
+                    type: object
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     try:
         payload = request.get_json() or {}
         code = payload.get('code', '')
@@ -1566,7 +2464,65 @@ def verify_strategy_code():
 @strategy_bp.route('/strategies/ai-generate', methods=['POST'])
 @login_required
 def ai_generate_strategy():
-    """Generate strategy code or suggest template parameter updates using AI."""
+    """
+    Generate strategy code or suggest template parameter updates using AI.
+
+    Supports three intents: generate_code (default), adjust_params, and bot_recommend.
+
+    ---
+    tags:
+      - Strategy
+    security:
+      - BearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - prompt
+            properties:
+              prompt:
+                type: string
+                description: User prompt describing the desired strategy or adjustment
+              intent:
+                type: string
+                enum: [generate_code, adjust_params, bot_recommend]
+                default: generate_code
+                description: Generation intent
+              template_key:
+                type: string
+                description: Template key (for adjust_params intent)
+              params:
+                type: object
+                description: Current parameters (for adjust_params intent)
+              code:
+                type: string
+                description: Current code context
+    responses:
+      200:
+        description: AI generation result
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                code:
+                  type: string
+                msg:
+                  type: string
+                params:
+                  type: object
+                bot_recommend:
+                  type: object
+                debug:
+                  type: object
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     try:
         payload = request.get_json() or {}
         lang = _request_lang()
@@ -2068,7 +3024,35 @@ Quality rules:
 @strategy_bp.route('/strategies/performance', methods=['GET'])
 @login_required
 def get_strategy_performance():
-    """Get strategy performance metrics (aggregated from equity curve and trades)."""
+    """
+    Get strategy performance metrics aggregated from equity curve and trades.
+
+    ---
+    tags:
+      - Strategy
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: id
+        in: query
+        required: true
+        schema:
+          type: integer
+        description: Strategy ID
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      404:
+        description: Strategy not found
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     try:
         user_id = g.user_id
         strategy_id = request.args.get('id', type=int)
@@ -2100,7 +3084,41 @@ def get_strategy_performance():
 @strategy_bp.route('/strategies/logs', methods=['GET'])
 @login_required
 def get_strategy_logs():
-    """Get strategy running logs."""
+    """
+    Get strategy running logs.
+
+    ---
+    tags:
+      - Strategy
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: id
+        in: query
+        required: true
+        schema:
+          type: string
+        description: Strategy ID
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          default: 200
+        description: Maximum number of log entries to return
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      404:
+        description: Strategy not found
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     try:
         user_id = g.user_id
         strategy_id = request.args.get('id')

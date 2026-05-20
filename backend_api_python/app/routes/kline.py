@@ -16,15 +16,70 @@ kline_service = KlineService()
 
 @kline_bp.route('/kline', methods=['GET'])
 def get_kline():
-    """
-    获取K线数据
-    
-    参数:
-        market: 市场类型 (Crypto, USStock, Forex, Futures)
-        symbol: 交易对/股票代码
-        timeframe: 时间周期 (1m, 5m, 15m, 30m, 1H, 4H, 1D, 1W)
-        limit: 数据条数 (默认300)
-        before_time: 获取此时间之前的数据 (可选，Unix时间戳)
+    """Get K-line (candlestick) data for a given symbol and timeframe.
+
+    ---
+    tags:
+      - Indicators
+    parameters:
+      - name: market
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+            - Crypto
+            - USStock
+            - Forex
+            - Futures
+          default: USStock
+        description: Market type
+      - name: symbol
+        in: query
+        required: true
+        schema:
+          type: string
+        description: Trading pair or stock ticker (e.g. "BTC/USDT", "AAPL")
+      - name: timeframe
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+            - "1m"
+            - "5m"
+            - "15m"
+            - "30m"
+            - "1H"
+            - "4H"
+            - "1D"
+            - "1W"
+          default: "1D"
+        description: Candlestick timeframe
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 300
+        description: Number of candles to return
+      - name: before_time
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: Unix timestamp; return candles before this time
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      400:
+        description: Missing symbol parameter
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     try:
         # 强制 GET, 使用 request.args
@@ -86,7 +141,37 @@ def get_kline():
 
 @kline_bp.route('/price', methods=['GET'])
 def get_price():
-    """获取最新价格"""
+    """Get latest price for a symbol.
+
+    ---
+    tags:
+      - Indicators
+    parameters:
+      - name: market
+        in: query
+        required: false
+        schema:
+          type: string
+          default: USStock
+        description: Market type
+      - name: symbol
+        in: query
+        required: true
+        schema:
+          type: string
+        description: Trading pair or stock ticker
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      400:
+        description: Missing symbol parameter
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     try:
         market = request.args.get('market', 'USStock')
         symbol = request.args.get('symbol', '')

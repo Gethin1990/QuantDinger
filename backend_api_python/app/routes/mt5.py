@@ -53,7 +53,28 @@ def _get_client():
 @mt5_bp.route("/status", methods=["GET"])
 @login_required
 def get_status():
-    """Get MT5 connection status."""
+    """
+    Get MT5 connection status.
+
+    ---
+    tags:
+      - MT5
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      403:
+        description: Desktop brokers not allowed
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     try:
         if not local_desktop_brokers_allowed():
             return jsonify({
@@ -81,14 +102,49 @@ def get_status():
 def connect():
     """
     Connect to MT5 terminal.
-    
-    Request body:
-    {
-        "login": 12345678,      // MT5 account number
-        "password": "xxx",      // MT5 password
-        "server": "ICMarkets-Demo",  // Broker server
-        "terminal_path": ""     // Optional: path to terminal64.exe
-    }
+
+    ---
+    tags:
+      - MT5
+    security:
+      - BearerAuth: []
+    requestBody:
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - login
+              - password
+              - server
+            properties:
+              login:
+                type: integer
+                description: MT5 account number
+              password:
+                type: string
+                description: MT5 password
+              server:
+                type: string
+                description: Broker server name
+              terminal_path:
+                type: string
+                description: Path to terminal64.exe
+    responses:
+      200:
+        description: Connected to MT5
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      400:
+        description: Connection failed
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      403:
+        description: Desktop brokers not allowed
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     global _client
     
@@ -159,7 +215,28 @@ def connect():
 @mt5_bp.route("/disconnect", methods=["POST"])
 @login_required
 def disconnect():
-    """Disconnect from MT5 terminal."""
+    """
+    Disconnect from MT5 terminal.
+
+    ---
+    tags:
+      - MT5
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Disconnected
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      403:
+        description: Desktop brokers not allowed
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     global _client
     
     try:
@@ -183,7 +260,28 @@ def disconnect():
 @mt5_bp.route("/account", methods=["GET"])
 @login_required
 def get_account():
-    """Get account information."""
+    """
+    Get account information.
+
+    ---
+    tags:
+      - MT5
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      403:
+        description: Desktop brokers not allowed
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     try:
         if not local_desktop_brokers_allowed():
             return jsonify({"success": False, "error": desktop_broker_cloud_reject_message()}), 403
@@ -202,7 +300,35 @@ def get_account():
 @mt5_bp.route("/positions", methods=["GET"])
 @login_required
 def get_positions():
-    """Get open positions."""
+    """
+    Get open positions.
+
+    ---
+    tags:
+      - MT5
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: symbol
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Filter by symbol
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      403:
+        description: Desktop brokers not allowed
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     try:
         if not local_desktop_brokers_allowed():
             return jsonify({"success": False, "error": desktop_broker_cloud_reject_message()}), 403
@@ -222,7 +348,35 @@ def get_positions():
 @mt5_bp.route("/orders", methods=["GET"])
 @login_required
 def get_orders():
-    """Get pending orders."""
+    """
+    Get pending orders.
+
+    ---
+    tags:
+      - MT5
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: symbol
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Filter by symbol
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      403:
+        description: Desktop brokers not allowed
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     try:
         if not local_desktop_brokers_allowed():
             return jsonify({"success": False, "error": desktop_broker_cloud_reject_message()}), 403
@@ -242,7 +396,36 @@ def get_orders():
 @mt5_bp.route("/symbols", methods=["GET"])
 @login_required
 def get_symbols():
-    """Get available symbols."""
+    """
+    Get available symbols.
+
+    ---
+    tags:
+      - MT5
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: group
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Symbol group filter
+        default: "*"
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      403:
+        description: Desktop brokers not allowed
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     try:
         if not local_desktop_brokers_allowed():
             return jsonify({"success": False, "error": desktop_broker_cloud_reject_message()}), 403
@@ -266,15 +449,61 @@ def get_symbols():
 def place_order():
     """
     Place an order.
-    
-    Request body:
-    {
-        "symbol": "EURUSD",
-        "side": "buy",          // "buy" or "sell"
-        "volume": 0.1,          // Lot size
-        "orderType": "market",  // "market" or "limit"
-        "price": 1.0800         // Required for limit orders
-    }
+
+    ---
+    tags:
+      - MT5
+    security:
+      - BearerAuth: []
+    requestBody:
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - symbol
+              - side
+              - volume
+            properties:
+              symbol:
+                type: string
+                description: Trading symbol
+              side:
+                type: string
+                enum:
+                  - buy
+                  - sell
+              volume:
+                type: number
+                description: Lot size
+              orderType:
+                type: string
+                enum:
+                  - market
+                  - limit
+                default: market
+              price:
+                type: number
+                description: Required for limit orders
+              comment:
+                type: string
+                description: Order comment
+                default: QuantDinger
+    responses:
+      200:
+        description: Order placed
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      400:
+        description: Invalid order parameters
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      403:
+        description: Desktop brokers not allowed
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     try:
         if not local_desktop_brokers_allowed():
@@ -346,12 +575,41 @@ def place_order():
 def close_position():
     """
     Close a position.
-    
-    Request body:
-    {
-        "ticket": 123456789,    // Position ticket
-        "volume": 0.1           // Optional: partial close volume
-    }
+
+    ---
+    tags:
+      - MT5
+    security:
+      - BearerAuth: []
+    requestBody:
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - ticket
+            properties:
+              ticket:
+                type: integer
+                description: Position ticket
+              volume:
+                type: number
+                description: Partial close volume
+    responses:
+      200:
+        description: Position closed
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      400:
+        description: Missing ticket or close failed
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      403:
+        description: Desktop brokers not allowed
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     try:
         if not local_desktop_brokers_allowed():
@@ -400,7 +658,37 @@ def close_position():
 @mt5_bp.route("/order/<int:ticket>", methods=["DELETE"])
 @login_required
 def cancel_order(ticket: int):
-    """Cancel a pending order."""
+    """
+    Cancel a pending order.
+
+    ---
+    tags:
+      - MT5
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: ticket
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: Order ticket to cancel
+    responses:
+      200:
+        description: Order cancelled
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      400:
+        description: Cancel failed
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      403:
+        description: Desktop brokers not allowed
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     try:
         if not local_desktop_brokers_allowed():
             return jsonify({"success": False, "error": desktop_broker_cloud_reject_message()}), 403
@@ -426,9 +714,34 @@ def cancel_order(ticket: int):
 def get_quote():
     """
     Get real-time quote.
-    
-    Query params:
-    - symbol: Trading symbol (e.g., EURUSD)
+
+    ---
+    tags:
+      - MT5
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: symbol
+        in: query
+        required: true
+        schema:
+          type: string
+        description: Trading symbol
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      400:
+        description: Missing symbol
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      403:
+        description: Desktop brokers not allowed
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     try:
         if not local_desktop_brokers_allowed():

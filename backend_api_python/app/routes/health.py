@@ -9,7 +9,20 @@ health_bp = Blueprint('health', __name__)
 
 @health_bp.route('/', methods=['GET'])
 def index():
-    """API 首页"""
+    """
+    API homepage - returns basic service info.
+
+    ---
+    tags:
+      - Health
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+    """
     return jsonify({
         'name': 'QuantDinger Python API',
         'version': '2.0.0',
@@ -21,7 +34,20 @@ def index():
 
 @health_bp.route('/health', methods=['GET'])
 def health_check():
-    """健康检查"""
+    """
+    Health check endpoint.
+
+    ---
+    tags:
+      - Health
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+    """
     return jsonify({
         'status': 'healthy',
         'timestamp': datetime.now(timezone.utc)
@@ -30,5 +56,18 @@ def health_check():
 
 @health_bp.route('/api/health', methods=['GET'])
 def api_health_check():
-    """兼容路径：用于容器健康检查/反代探针等场景。"""
+    """
+    Health check alias for container probes and reverse proxy health checks.
+
+    ---
+    tags:
+      - Health
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+    """
     return health_check()

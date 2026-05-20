@@ -23,19 +23,68 @@ community_bp = Blueprint("community", __name__)
 @login_required
 def get_market_indicators():
     """
-    获取市场指标列表
-    
-    Query params:
-        page: 页码 (default 1)
-        page_size: 每页数量 (default 12)
-        keyword: 搜索关键词
-        pricing_type: 'free' / 'paid' / 空(全部)
-        sort_by: 'score' (default) / 'newest' / 'hot' / 'price_asc' /
-                 'price_desc' / 'rating'.
-                 'score' sorts by the composite multi-factor backtest score
-                 (see services/experiment/scoring.py) and is now the
-                 default — putting genuinely well-performing indicators
-                 at the top of the marketplace, not just the newest ones.
+    Get market indicators list with filtering and sorting.
+
+    ---
+    tags:
+      - Community
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 1
+        description: "Page number"
+      - name: page_size
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 12
+        description: "Page size (max 50)"
+      - name: keyword
+        in: query
+        required: false
+        schema:
+          type: string
+        description: "Search keyword"
+      - name: pricing_type
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+            - free
+            - paid
+        description: "Filter by pricing type (empty for all)"
+      - name: sort_by
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+            - score
+            - newest
+            - hot
+            - price_asc
+            - price_desc
+            - rating
+          default: score
+        description: "Sort order"
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     try:
         page = int(request.args.get('page', 1))
@@ -76,7 +125,39 @@ def get_market_indicators():
 @community_bp.route("/indicators/<int:indicator_id>", methods=["GET"])
 @login_required
 def get_indicator_detail(indicator_id: int):
-    """获取指标详情"""
+    """
+    Get indicator detail by ID.
+
+    ---
+    tags:
+      - Community
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: indicator_id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: "Indicator ID"
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      404:
+        description: Indicator not found
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     try:
         accept_lang = (
             request.headers.get('X-App-Lang')
@@ -108,13 +189,37 @@ def get_indicator_detail(indicator_id: int):
 @login_required
 def purchase_indicator(indicator_id: int):
     """
-    购买指标
-    
-    会自动：
-    1. 检查积分是否充足
-    2. 扣除买家积分，增加卖家积分
-    3. 创建购买记录
-    4. 复制指标到买家账户
+    Purchase an indicator from the marketplace.
+
+    ---
+    tags:
+      - Community
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: indicator_id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: "Indicator ID to purchase"
+    responses:
+      200:
+        description: Purchase successful
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      400:
+        description: Insufficient credits or already purchased
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     try:
         service = get_community_service()
@@ -137,15 +242,43 @@ def purchase_indicator(indicator_id: int):
 @login_required
 def sync_purchased_indicator(indicator_id: int):
     """
-    同步已购买指标的最新代码
+    Sync the latest code of a purchased indicator.
 
-    适用场景：
-        发布者在上架后又更新了指标代码，已购用户需要
-        手动拉取最新版本到自己的本地副本。
-
-    前置条件：
-        - 调用者必须已购买该指标
-        - 原始指标仍处于已发布状态
+    ---
+    tags:
+      - Community
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: indicator_id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: "Indicator ID to sync"
+    responses:
+      200:
+        description: Sync successful
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      403:
+        description: Not purchased
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      404:
+        description: Indicator not found, unpublished, or local copy missing
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     try:
         service = get_community_service()
@@ -173,7 +306,41 @@ def sync_purchased_indicator(indicator_id: int):
 @community_bp.route("/my-purchases", methods=["GET"])
 @login_required
 def get_my_purchases():
-    """获取我购买的指标列表"""
+    """
+    Get the current user's purchased indicators list.
+
+    ---
+    tags:
+      - Community
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 1
+        description: "Page number"
+      - name: page_size
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 20
+        description: "Page size (max 50)"
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     try:
         page = int(request.args.get('page', 1))
         page_size = int(request.args.get('page_size', 20))
@@ -204,7 +371,26 @@ def get_my_purchases():
 @community_bp.route("/author/summary", methods=["GET"])
 @login_required
 def get_author_summary():
-    """作者总览：发布数 / 已通过 / 待审核 / 总销量 / 总收入 / 平均评分。"""
+    """
+    Get author dashboard summary (publish count, sales, revenue, ratings).
+
+    ---
+    tags:
+      - Community
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     try:
         service = get_community_service()
         result = service.get_author_summary(user_id=g.user_id)
@@ -217,7 +403,41 @@ def get_author_summary():
 @community_bp.route("/author/published", methods=["GET"])
 @login_required
 def get_author_published():
-    """作者发布的指标列表 + 每条销量/收入/评分。"""
+    """
+    Get author's published indicators with sales/revenue/rating stats.
+
+    ---
+    tags:
+      - Community
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 1
+        description: "Page number"
+      - name: page_size
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 20
+        description: "Page size (max 50)"
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     try:
         page = int(request.args.get('page', 1))
         page_size = int(request.args.get('page_size', 20))
@@ -238,7 +458,47 @@ def get_author_published():
 @community_bp.route("/author/sales", methods=["GET"])
 @login_required
 def get_author_sales():
-    """作者销售明细：按购买记录分页，可选 indicator_id 过滤。"""
+    """
+    Get author's sales records with optional indicator filter.
+
+    ---
+    tags:
+      - Community
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 1
+        description: "Page number"
+      - name: page_size
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 20
+        description: "Page size (max 100)"
+      - name: indicator_id
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: "Filter by indicator ID"
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     try:
         page = int(request.args.get('page', 1))
         page_size = int(request.args.get('page_size', 20))
@@ -266,7 +526,47 @@ def get_author_sales():
 @community_bp.route("/indicators/<int:indicator_id>/comments", methods=["GET"])
 @login_required
 def get_comments(indicator_id: int):
-    """获取指标评论列表"""
+    """
+    Get comments for an indicator.
+
+    ---
+    tags:
+      - Community
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: indicator_id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: "Indicator ID"
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 1
+        description: "Page number"
+      - name: page_size
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 20
+        description: "Page size (max 50)"
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     try:
         page = int(request.args.get('page', 1))
         page_size = int(request.args.get('page_size', 20))
@@ -290,13 +590,54 @@ def get_comments(indicator_id: int):
 @login_required
 def add_comment(indicator_id: int):
     """
-    添加评论
-    
-    Request body:
-        rating: 1-5 星评分
-        content: 评论内容（可选，最多500字）
-    
-    注意：只有购买过的用户可以评论，且只能评论一次
+    Add a comment to an indicator (requires purchase).
+
+    ---
+    tags:
+      - Community
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: indicator_id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: "Indicator ID"
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              rating:
+                type: integer
+                minimum: 1
+                maximum: 5
+                default: 5
+                description: "Star rating (1-5)"
+              content:
+                type: string
+                maxLength: 500
+                description: "Comment content (optional, max 500 chars)"
+    responses:
+      200:
+        description: Comment added successfully
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      400:
+        description: Already commented or not purchased
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     try:
         data = request.get_json() or {}
@@ -325,11 +666,60 @@ def add_comment(indicator_id: int):
 @login_required
 def update_comment(indicator_id: int, comment_id: int):
     """
-    更新评论（只能修改自己的评论）
-    
-    Request body:
-        rating: 1-5 星评分
-        content: 评论内容（最多500字）
+    Update an existing comment (own comments only).
+
+    ---
+    tags:
+      - Community
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: indicator_id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: "Indicator ID"
+      - name: comment_id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: "Comment ID"
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              rating:
+                type: integer
+                minimum: 1
+                maximum: 5
+                default: 5
+                description: "Star rating (1-5)"
+              content:
+                type: string
+                maxLength: 500
+                description: "Comment content (max 500 chars)"
+    responses:
+      200:
+        description: Comment updated successfully
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      400:
+        description: Update failed
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     try:
         data = request.get_json() or {}
@@ -358,7 +748,33 @@ def update_comment(indicator_id: int, comment_id: int):
 @community_bp.route("/indicators/<int:indicator_id>/my-comment", methods=["GET"])
 @login_required
 def get_my_comment(indicator_id: int):
-    """获取当前用户对指定指标的评论（用于编辑）"""
+    """
+    Get the current user's comment on an indicator (for editing).
+
+    ---
+    tags:
+      - Community
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: indicator_id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: "Indicator ID"
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     try:
         service = get_community_service()
         result = service.get_user_comment(
@@ -380,7 +796,33 @@ def get_my_comment(indicator_id: int):
 @community_bp.route("/indicators/<int:indicator_id>/performance", methods=["GET"])
 @login_required
 def get_indicator_performance(indicator_id: int):
-    """获取指标的实盘表现统计"""
+    """
+    Get live performance statistics for an indicator.
+
+    ---
+    tags:
+      - Community
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: indicator_id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: "Indicator ID"
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     try:
         service = get_community_service()
         result = service.get_indicator_performance(indicator_id)
@@ -406,12 +848,57 @@ def _is_admin():
 @login_required
 def get_pending_indicators():
     """
-    获取待审核的指标列表（管理员专用）
-    
-    Query params:
-        page: 页码 (default 1)
-        page_size: 每页数量 (default 20)
-        review_status: 'pending' / 'approved' / 'rejected' / 'all'
+    Get indicators pending review (admin only).
+
+    ---
+    tags:
+      - Community
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 1
+        description: "Page number"
+      - name: page_size
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 20
+        description: "Page size (max 100)"
+      - name: review_status
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+            - pending
+            - approved
+            - rejected
+            - all
+          default: pending
+        description: "Filter by review status"
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      403:
+        description: Admin role required
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     try:
         if not _is_admin():
@@ -439,7 +926,32 @@ def get_pending_indicators():
 @community_bp.route("/admin/review-stats", methods=["GET"])
 @login_required
 def get_review_stats():
-    """获取审核统计数据（管理员专用）"""
+    """
+    Get review statistics (admin only).
+
+    ---
+    tags:
+      - Community
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      403:
+        description: Admin role required
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     try:
         if not _is_admin():
             return jsonify({'code': 0, 'msg': 'admin_required', 'data': None}), 403
@@ -458,11 +970,61 @@ def get_review_stats():
 @login_required
 def review_indicator(indicator_id: int):
     """
-    审核指标（管理员专用）
-    
-    Request body:
-        action: 'approve' / 'reject'
-        note: 审核备注（可选）
+    Review an indicator (admin only).
+
+    ---
+    tags:
+      - Community
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: indicator_id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: "Indicator ID to review"
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - action
+            properties:
+              action:
+                type: string
+                enum:
+                  - approve
+                  - reject
+                description: "Review action"
+              note:
+                type: string
+                description: "Review note (optional)"
+    responses:
+      200:
+        description: Review completed
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      400:
+        description: Invalid action
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      403:
+        description: Admin role required
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     try:
         if not _is_admin():
@@ -497,10 +1059,53 @@ def review_indicator(indicator_id: int):
 @login_required
 def unpublish_indicator(indicator_id: int):
     """
-    下架指标（管理员专用）
-    
-    Request body:
-        note: 下架原因（可选）
+    Unpublish an indicator (admin only).
+
+    ---
+    tags:
+      - Community
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: indicator_id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: "Indicator ID to unpublish"
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              note:
+                type: string
+                description: "Reason for unpublishing (optional)"
+    responses:
+      200:
+        description: Unpublished successfully
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      400:
+        description: Unpublish failed
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      403:
+        description: Admin role required
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     try:
         if not _is_admin():
@@ -529,7 +1134,45 @@ def unpublish_indicator(indicator_id: int):
 @community_bp.route("/admin/indicators/<int:indicator_id>", methods=["DELETE"])
 @login_required
 def admin_delete_indicator(indicator_id: int):
-    """删除指标（管理员专用）"""
+    """
+    Delete an indicator (admin only).
+
+    ---
+    tags:
+      - Community
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: indicator_id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: "Indicator ID to delete"
+    responses:
+      200:
+        description: Deleted successfully
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      400:
+        description: Delete failed
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      403:
+        description: Admin role required
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     try:
         if not _is_admin():
             return jsonify({'code': 0, 'msg': 'admin_required', 'data': None}), 403

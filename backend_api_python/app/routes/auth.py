@@ -116,13 +116,19 @@ def _get_user_agent() -> str:
 def get_security_config():
     """
     Get public security configuration for frontend.
-    
-    Returns:
-        turnstile_enabled: bool
-        turnstile_site_key: str
-        registration_enabled: bool
-        oauth_google_enabled: bool
-        oauth_github_enabled: bool
+
+    ---
+    tags:
+      - Auth
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     try:
         from app.services.security_service import get_security_service
@@ -140,16 +146,64 @@ def get_security_config():
 @auth_bp.route('/login', methods=['POST'])
 def login():
     """
-    User login endpoint.
-    
-    Request body:
-        username: str
-        password: str
-        turnstile_token: str (optional, required if Turnstile is enabled)
-    
-    Returns:
-        token: JWT token
-        userinfo: User information
+    User login with username and password.
+
+    ---
+    tags:
+      - Auth
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - username
+              - password
+            properties:
+              username:
+                type: string
+                description: Username or email address
+              password:
+                type: string
+                format: password
+                description: User password
+              turnstile_token:
+                type: string
+                description: Cloudflare Turnstile verification token (required if enabled)
+    responses:
+      200:
+        description: Login successful
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      400:
+        description: Invalid input or Turnstile verification failed
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        description: Invalid credentials
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      403:
+        description: Account disabled or pending activation
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      429:
+        description: Rate limited
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     ip_address = _get_client_ip()
     user_agent = _get_user_agent()
@@ -285,14 +339,55 @@ def login():
 @auth_bp.route('/login-code', methods=['POST'])
 def login_with_code():
     """
-    Login with email verification code (quick login / register).
-    If user doesn't exist, create a new account automatically.
-    
-    Request body:
-        email: str
-        code: str (verification code)
-        turnstile_token: str (optional)
-        referral_code: str (optional, referrer's user ID - only for new users)
+    Login with email verification code. Auto-creates account if user does not exist.
+
+    ---
+    tags:
+      - Auth
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - email
+              - code
+            properties:
+              email:
+                type: string
+                format: email
+                description: User email address
+              code:
+                type: string
+                description: Email verification code
+              turnstile_token:
+                type: string
+                description: Cloudflare Turnstile verification token (required if enabled)
+              referral_code:
+                type: string
+                description: Referrer user ID (only used when creating a new account)
+    responses:
+      200:
+        description: Login successful (new account created if user did not exist)
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      400:
+        description: Invalid input or verification code
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      403:
+        description: Account disabled or registration disabled
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     ip_address = _get_client_ip()
     user_agent = _get_user_agent()
@@ -491,12 +586,57 @@ def login_with_code():
 @auth_bp.route('/send-code', methods=['POST'])
 def send_verification_code():
     """
-    Send verification code to email.
-    
-    Request body:
-        email: str
-        type: str (register, reset_password, change_password, change_email)
-        turnstile_token: str (optional)
+    Send email verification code for registration, password reset, etc.
+
+    ---
+    tags:
+      - Auth
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - email
+            properties:
+              email:
+                type: string
+                format: email
+                description: Target email address
+              type:
+                type: string
+                enum:
+                  - register
+                  - reset_password
+                  - change_password
+                  - change_email
+                default: register
+                description: Purpose of the verification code
+              turnstile_token:
+                type: string
+                description: Cloudflare Turnstile verification token (required if enabled)
+    responses:
+      200:
+        description: Verification code sent successfully
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      400:
+        description: Invalid input or email already registered
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      429:
+        description: Rate limited
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     ip_address = _get_client_ip()
     
@@ -581,15 +721,66 @@ def send_verification_code():
 @auth_bp.route('/register', methods=['POST'])
 def register():
     """
-    Register new user with email verification.
-    
-    Request body:
-        email: str
-        code: str (verification code)
-        username: str
-        password: str
-        turnstile_token: str (optional)
-        referral_code: str (optional, referrer's user ID)
+    Register a new user account with email verification.
+
+    ---
+    tags:
+      - Auth
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - email
+              - code
+              - username
+              - password
+            properties:
+              email:
+                type: string
+                format: email
+                description: User email address
+              code:
+                type: string
+                description: Email verification code
+              username:
+                type: string
+                minLength: 3
+                maxLength: 30
+                description: Username (alphanumeric and underscores, must start with a letter)
+              password:
+                type: string
+                format: password
+                description: User password
+              turnstile_token:
+                type: string
+                description: Cloudflare Turnstile verification token (required if enabled)
+              referral_code:
+                type: string
+                description: Referrer user ID for referral bonus
+    responses:
+      200:
+        description: Registration successful
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      400:
+        description: Invalid input, duplicate username/email, or weak password
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      403:
+        description: Registration is disabled
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     ip_address = _get_client_ip()
     user_agent = _get_user_agent()
@@ -773,13 +964,57 @@ def register():
 @auth_bp.route('/reset-password', methods=['POST'])
 def reset_password():
     """
-    Reset password with email verification.
-    
-    Request body:
-        email: str
-        code: str (verification code)
-        new_password: str
-        turnstile_token: str (optional)
+    Reset password using email verification code.
+
+    ---
+    tags:
+      - Auth
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - email
+              - code
+              - new_password
+            properties:
+              email:
+                type: string
+                format: email
+                description: Registered email address
+              code:
+                type: string
+                description: Email verification code
+              new_password:
+                type: string
+                format: password
+                description: New password
+              turnstile_token:
+                type: string
+                description: Cloudflare Turnstile verification token (required if enabled)
+    responses:
+      200:
+        description: Password reset successful
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      400:
+        description: Invalid input, weak password, or bad verification code
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      404:
+        description: User not found
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     ip_address = _get_client_ip()
     user_agent = _get_user_agent()
@@ -848,11 +1083,47 @@ def reset_password():
 @login_required
 def change_password():
     """
-    Change password with email verification (for logged-in users).
-    
-    Request body:
-        code: str (verification code sent to user's email)
-        new_password: str
+    Change password for the currently authenticated user (requires email verification code).
+
+    ---
+    tags:
+      - Auth
+    security:
+      - BearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - code
+              - new_password
+            properties:
+              code:
+                type: string
+                description: Email verification code sent to the user's email
+              new_password:
+                type: string
+                format: password
+                description: New password
+    responses:
+      200:
+        description: Password changed successfully
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      400:
+        description: Invalid input, weak password, or bad verification code
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     ip_address = _get_client_ip()
     user_agent = _get_user_agent()
@@ -913,12 +1184,32 @@ def change_password():
 
 @auth_bp.route('/oauth/google', methods=['GET'])
 def oauth_google():
-    """Redirect to Google OAuth authorization page.
+    """
+    Redirect to Google OAuth authorization page.
 
-    Query params:
-        redirect: optional front-end URL (must be allow-listed). When provided,
-                  after successful login the user is redirected there instead of
-                  the default FRONTEND_URL. Supports multi-frontend (PC + mobile).
+    ---
+    tags:
+      - Auth
+    parameters:
+      - name: redirect
+        in: query
+        required: false
+        schema:
+          type: string
+        description: >
+          Optional frontend URL to redirect to after login (must be allow-listed).
+          Supports multi-frontend (PC + mobile).
+    responses:
+      302:
+        description: Redirect to Google OAuth consent page
+      400:
+        description: Google OAuth is not configured
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     try:
         from app.services.oauth_service import get_oauth_service
@@ -938,7 +1229,37 @@ def oauth_google():
 
 @auth_bp.route('/oauth/google/callback', methods=['GET'])
 def oauth_google_callback():
-    """Handle Google OAuth callback"""
+    """
+    Handle Google OAuth callback.
+
+    ---
+    tags:
+      - Auth
+    parameters:
+      - name: code
+        in: query
+        required: false
+        schema:
+          type: string
+        description: OAuth authorization code
+      - name: state
+        in: query
+        required: false
+        schema:
+          type: string
+        description: OAuth state parameter for CSRF protection
+      - name: error
+        in: query
+        required: false
+        schema:
+          type: string
+        description: OAuth error code returned by Google
+    responses:
+      302:
+        description: Redirect to frontend with token or error
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     ip_address = _get_client_ip()
     user_agent = _get_user_agent()
     
@@ -1009,10 +1330,32 @@ def oauth_google_callback():
 
 @auth_bp.route('/oauth/github', methods=['GET'])
 def oauth_github():
-    """Redirect to GitHub OAuth authorization page.
+    """
+    Redirect to GitHub OAuth authorization page.
 
-    Query params:
-        redirect: optional front-end URL (must be allow-listed), see oauth_google.
+    ---
+    tags:
+      - Auth
+    parameters:
+      - name: redirect
+        in: query
+        required: false
+        schema:
+          type: string
+        description: >
+          Optional frontend URL to redirect to after login (must be allow-listed).
+          Supports multi-frontend (PC + mobile).
+    responses:
+      302:
+        description: Redirect to GitHub OAuth consent page
+      400:
+        description: GitHub OAuth is not configured
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     try:
         from app.services.oauth_service import get_oauth_service
@@ -1032,7 +1375,37 @@ def oauth_github():
 
 @auth_bp.route('/oauth/github/callback', methods=['GET'])
 def oauth_github_callback():
-    """Handle GitHub OAuth callback"""
+    """
+    Handle GitHub OAuth callback.
+
+    ---
+    tags:
+      - Auth
+    parameters:
+      - name: code
+        in: query
+        required: false
+        schema:
+          type: string
+        description: OAuth authorization code
+      - name: state
+        in: query
+        required: false
+        schema:
+          type: string
+        description: OAuth state parameter for CSRF protection
+      - name: error
+        in: query
+        required: false
+        schema:
+          type: string
+        description: OAuth error code returned by GitHub
+    responses:
+      302:
+        description: Redirect to frontend with token or error
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     ip_address = _get_client_ip()
     user_agent = _get_user_agent()
     
@@ -1105,14 +1478,46 @@ def oauth_github_callback():
 
 @auth_bp.route('/logout', methods=['POST'])
 def logout():
-    """Logout (client removes token; server is stateless)."""
+    """
+    Logout the current user. Server is stateless; client should remove the stored token.
+
+    ---
+    tags:
+      - Auth
+    responses:
+      200:
+        description: Logout successful
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+    """
     return jsonify({'code': 1, 'msg': 'Logout successful', 'data': None})
 
 
 @auth_bp.route('/info', methods=['GET'])
 @login_required
 def get_user_info():
-    """Get current user info."""
+    """
+    Get current authenticated user information.
+
+    ---
+    tags:
+      - Auth
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     try:
         user_id = getattr(g, 'user_id', 1)
         username = getattr(g, 'user', Config.ADMIN_USER)

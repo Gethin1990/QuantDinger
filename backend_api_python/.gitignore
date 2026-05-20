@@ -36,6 +36,7 @@ wheels/
 # 环境变量
 .env
 .env.local
+.env.docker
 
 # Local runtime data (do not commit)
 quantdinger.db

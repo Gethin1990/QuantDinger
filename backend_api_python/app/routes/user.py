@@ -44,11 +44,39 @@ user_bp = Blueprint('user_manage', __name__)
 def list_users():
     """
     List all users (admin only).
-    
-    Query params:
-        page: int (default 1)
-        page_size: int (default 20, max 100)
-        search: str (optional, search by username/email/nickname)
+
+    ---
+    tags:
+      - Users
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: page
+        in: query
+        type: integer
+        required: false
+        description: Page number (default 1)
+      - name: page_size
+        in: query
+        type: integer
+        required: false
+        description: Page size (default 20, max 100)
+      - name: search
+        in: query
+        type: string
+        required: false
+        description: Search by username/email/nickname
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     try:
         page = request.args.get('page', 1, type=int)
@@ -72,7 +100,33 @@ def list_users():
 @login_required
 @admin_required
 def export_users():
-    """Export all users as an Excel-friendly CSV file (admin only)."""
+    """
+    Export all users as an Excel-friendly CSV file (admin only).
+
+    ---
+    tags:
+      - Users
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: search
+        in: query
+        type: string
+        required: false
+        description: Search by username/email/nickname
+    responses:
+      200:
+        description: CSV file download
+        content:
+          text/csv:
+            schema:
+              type: string
+              format: binary
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     try:
         search = request.args.get('search', '', type=str)
         users = get_user_service().list_all_users_for_export(search=search)
@@ -120,7 +174,36 @@ def export_users():
 @login_required
 @admin_required
 def get_user_detail():
-    """Get user detail by ID (admin only)"""
+    """
+    Get user detail by ID (admin only).
+
+    ---
+    tags:
+      - Users
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: id
+        in: query
+        type: integer
+        required: true
+        description: User ID
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      400:
+        description: Missing user id
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      404:
+        description: User not found
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     try:
         user_id = request.args.get('id', type=int)
         if not user_id:
@@ -146,13 +229,50 @@ def get_user_detail():
 def create_user():
     """
     Create a new user (admin only).
-    
-    Request body:
-        username: str (required)
-        password: str (required)
-        email: str (optional)
-        nickname: str (optional)
-        role: str (optional, default 'user')
+
+    ---
+    tags:
+      - Users
+    security:
+      - BearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              username:
+                type: string
+                description: Username (required)
+              password:
+                type: string
+                description: Password (required)
+              email:
+                type: string
+                description: Email address
+              nickname:
+                type: string
+                description: Display nickname
+              role:
+                type: string
+                description: User role (default 'user')
+            required:
+              - username
+              - password
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      400:
+        description: Validation error
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     try:
         data = request.get_json() or {}
@@ -177,15 +297,50 @@ def create_user():
 def update_user():
     """
     Update user information (admin only).
-    
-    Query params:
-        id: int (required)
-    
-    Request body:
-        email: str (optional)
-        nickname: str (optional)
-        role: str (optional)
-        status: str (optional)
+
+    ---
+    tags:
+      - Users
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: id
+        in: query
+        type: integer
+        required: true
+        description: User ID to update
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              email:
+                type: string
+                description: Email address
+              nickname:
+                type: string
+                description: Display nickname
+              role:
+                type: string
+                description: User role
+              status:
+                type: string
+                description: Account status
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      400:
+        description: Missing user id or update failed
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     try:
         user_id = request.args.get('id', type=int)
@@ -209,7 +364,34 @@ def update_user():
 @login_required
 @admin_required
 def delete_user():
-    """Delete a user (admin only)"""
+    """
+    Delete a user (admin only).
+
+    ---
+    tags:
+      - Users
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: id
+        in: query
+        type: integer
+        required: true
+        description: User ID to delete
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      400:
+        description: Missing user id or cannot delete yourself
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     try:
         user_id = request.args.get('id', type=int)
         if not user_id:
@@ -236,10 +418,41 @@ def delete_user():
 def reset_user_password():
     """
     Reset a user's password (admin only).
-    
-    Request body:
-        user_id: int (required)
-        new_password: str (required)
+
+    ---
+    tags:
+      - Users
+    security:
+      - BearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              user_id:
+                type: integer
+                description: Target user ID
+              new_password:
+                type: string
+                description: New password (min 6 characters)
+            required:
+              - user_id
+              - new_password
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      400:
+        description: Validation error
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     try:
         data = request.get_json() or {}
@@ -269,7 +482,26 @@ def reset_user_password():
 @login_required
 @admin_required
 def get_roles():
-    """Get available roles and their permissions"""
+    """
+    Get available roles and their permissions.
+
+    ---
+    tags:
+      - Users
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     service = get_user_service()
     
     roles = []
@@ -295,11 +527,44 @@ def get_roles():
 def set_user_credits():
     """
     Set user credits (admin only).
-    
-    Request body:
-        user_id: int (required)
-        credits: int (required)
-        remark: str (optional)
+
+    ---
+    tags:
+      - Users
+    security:
+      - BearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              user_id:
+                type: integer
+                description: Target user ID
+              credits:
+                type: integer
+                description: Credits to set (non-negative)
+              remark:
+                type: string
+                description: Admin remark
+            required:
+              - user_id
+              - credits
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      400:
+        description: Validation error
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     try:
         from app.services.billing_service import get_billing_service
@@ -333,12 +598,46 @@ def set_user_credits():
 def set_user_vip():
     """
     Set user VIP status (admin only).
-    
-    Request body:
-        user_id: int (required)
-        vip_days: int (optional, 0 to cancel VIP, positive number to grant VIP for days)
-        vip_expires_at: str (optional, ISO format datetime, overrides vip_days if provided)
-        remark: str (optional)
+
+    ---
+    tags:
+      - Users
+    security:
+      - BearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              user_id:
+                type: integer
+                description: Target user ID
+              vip_days:
+                type: integer
+                description: VIP days to grant (0 to cancel VIP)
+              vip_expires_at:
+                type: string
+                description: ISO format datetime for VIP expiry (overrides vip_days)
+              remark:
+                type: string
+                description: Admin remark
+            required:
+              - user_id
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      400:
+        description: Validation error
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     try:
         from datetime import datetime, timedelta, timezone
@@ -391,11 +690,41 @@ def set_user_vip():
 def get_user_credits_log():
     """
     Get user credits log (admin only).
-    
-    Query params:
-        user_id: int (required)
-        page: int (default 1)
-        page_size: int (default 20)
+
+    ---
+    tags:
+      - Users
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: user_id
+        in: query
+        type: integer
+        required: true
+        description: Target user ID
+      - name: page
+        in: query
+        type: integer
+        required: false
+        description: Page number (default 1)
+      - name: page_size
+        in: query
+        type: integer
+        required: false
+        description: Page size (default 20, max 100)
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      400:
+        description: Missing user_id
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     try:
         from app.services.billing_service import get_billing_service
@@ -421,7 +750,28 @@ def get_user_credits_log():
 @user_bp.route('/profile', methods=['GET'])
 @login_required
 def get_profile():
-    """Get current user's profile with billing info and notification settings"""
+    """
+    Get current user's profile with billing info and notification settings.
+
+    ---
+    tags:
+      - Users
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      404:
+        description: User not found
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     try:
         import json
         from app.services.billing_service import get_billing_service
@@ -478,14 +828,43 @@ def get_profile():
 def update_profile():
     """
     Update current user's profile (limited fields).
-    
-    Request body:
-        nickname: str (optional)
-        avatar: str (optional)
-        timezone: str (optional, IANA id; empty = follow client)
-    
-    Note: Email cannot be changed after registration (for security).
-          Only admin can change user email via User Management.
+
+    Email cannot be changed after registration (for security).
+
+    ---
+    tags:
+      - Users
+    security:
+      - BearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              nickname:
+                type: string
+                description: Display nickname
+              avatar:
+                type: string
+                description: Avatar URL or identifier
+              timezone:
+                type: string
+                description: IANA timezone identifier (empty to follow client)
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      400:
+        description: No valid fields to update or invalid timezone
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     try:
         user_id = getattr(g, 'user_id', None)
@@ -530,10 +909,34 @@ def update_profile():
 def get_my_credits_log():
     """
     Get current user's credits log.
-    
-    Query params:
-        page: int (default 1)
-        page_size: int (default 20)
+
+    ---
+    tags:
+      - Users
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: page
+        in: query
+        type: integer
+        required: false
+        description: Page number (default 1)
+      - name: page_size
+        in: query
+        type: integer
+        required: false
+        description: Page size (default 20, max 100)
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     try:
         from app.services.billing_service import get_billing_service
@@ -559,17 +962,34 @@ def get_my_credits_log():
 def get_my_referrals():
     """
     Get list of users referred by current user.
-    
-    Query params:
-        page: int (default 1)
-        page_size: int (default 20)
-    
-    Returns:
-        list: Users referred by current user (id, username, nickname, avatar, created_at)
-        total: Total count of referrals
-        referral_code: Current user's referral code (user ID)
-        referral_bonus: Credits earned per referral
-        register_bonus: Credits new users get on registration
+
+    ---
+    tags:
+      - Users
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: page
+        in: query
+        type: integer
+        required: false
+        description: Page number (default 1)
+      - name: page_size
+        in: query
+        type: integer
+        required: false
+        description: Page size (default 20, max 100)
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     try:
         import os
@@ -642,14 +1062,25 @@ def get_my_referrals():
 def get_notification_settings():
     """
     Get current user's notification settings.
-    
-    Returns:
-        notification_settings: {
-            default_channels: ['browser', 'telegram', ...],
-            telegram_chat_id: str,
-            email: str (optional, override for notifications),
-            discord_webhook: str (optional)
-        }
+
+    ---
+    tags:
+      - Users
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      404:
+        description: User not found
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     try:
         import json
@@ -698,13 +1129,59 @@ def get_notification_settings():
 def update_notification_settings():
     """
     Update current user's notification settings.
-    
-    Request body:
-        default_channels: list of str (optional, e.g. ['browser', 'telegram'])
-        telegram_bot_token: str (optional, user's own Telegram bot token)
-        telegram_chat_id: str (optional)
-        email: str (optional, for notification override)
-        discord_webhook: str (optional)
+
+    ---
+    tags:
+      - Users
+    security:
+      - BearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              default_channels:
+                type: array
+                description: List of notification channels (e.g. browser, telegram, email, discord, webhook, phone)
+                items:
+                  type: string
+              telegram_bot_token:
+                type: string
+                description: User's own Telegram bot token
+              telegram_chat_id:
+                type: string
+                description: Telegram chat ID
+              email:
+                type: string
+                description: Email for notification override
+              discord_webhook:
+                type: string
+                description: Discord webhook URL
+              webhook_url:
+                type: string
+                description: Generic webhook URL
+              webhook_token:
+                type: string
+                description: Webhook auth token
+              webhook_signing_secret:
+                type: string
+                description: Webhook HMAC signing secret
+              phone:
+                type: string
+                description: Phone number for SMS notifications
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     try:
         import json
@@ -771,7 +1248,26 @@ def update_notification_settings():
 @user_bp.route('/chart-templates', methods=['GET'])
 @login_required
 def get_chart_templates():
-    """Get current user's indicator chart templates."""
+    """
+    Get current user's indicator chart templates.
+
+    ---
+    tags:
+      - Users
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     try:
         user_id = getattr(g, 'user_id', None)
         if not user_id:
@@ -808,7 +1304,65 @@ def get_chart_templates():
 @user_bp.route('/chart-templates', methods=['POST'])
 @login_required
 def save_chart_template():
-    """Create or update a user's indicator chart template."""
+    """
+    Create or update a user's indicator chart template.
+
+    ---
+    tags:
+      - Users
+    security:
+      - BearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              name:
+                type: string
+                description: Template name (required, max 80 chars)
+              template_id:
+                type: string
+                description: Existing template ID to update (omit to create new)
+              indicators:
+                type: array
+                description: List of indicator configurations
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                    instanceId:
+                      type: string
+                    type:
+                      type: string
+                    name:
+                      type: string
+                    shortName:
+                      type: string
+                    visible:
+                      type: boolean
+                    params:
+                      type: object
+                    style:
+                      type: object
+            required:
+              - name
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      400:
+        description: Missing or invalid fields
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     try:
         user_id = getattr(g, 'user_id', None)
         if not user_id:
@@ -911,7 +1465,34 @@ def save_chart_template():
 @user_bp.route('/chart-templates', methods=['DELETE'])
 @login_required
 def delete_chart_template():
-    """Delete a user's chart template by id."""
+    """
+    Delete a user's chart template by id.
+
+    ---
+    tags:
+      - Users
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: template_id
+        in: query
+        type: string
+        required: true
+        description: Chart template ID to delete
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      400:
+        description: template_id is required
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     try:
         user_id = getattr(g, 'user_id', None)
         if not user_id:
@@ -957,8 +1538,26 @@ def delete_chart_template():
 @login_required
 def test_notification_settings():
     """
-    Send a test notification using the current user's saved notification_settings
-    (save settings first via PUT /notification-settings).
+    Send a test notification using the current user's saved notification settings.
+
+    ---
+    tags:
+      - Users
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Success (at least one channel sent)
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      404:
+        description: User not found
+      500:
+        description: All notification channels failed
     """
     try:
         import json
@@ -1038,10 +1637,40 @@ def test_notification_settings():
 def change_password():
     """
     Change current user's password.
-    
-    Request body:
-        old_password: str (required)
-        new_password: str (required)
+
+    ---
+    tags:
+      - Users
+    security:
+      - BearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              old_password:
+                type: string
+                description: Current password (not required if user has no password set)
+              new_password:
+                type: string
+                description: New password (min 6 characters)
+            required:
+              - new_password
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      400:
+        description: Validation error or old password incorrect
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     try:
         user_id = getattr(g, 'user_id', None)
@@ -1129,16 +1758,61 @@ def _safe_json_loads(s, default=None):
 def get_system_strategies():
     """
     Get all strategies across the entire system (admin only).
+
     Returns strategy details with user info, positions, PnL, indicators, etc.
 
-    Query params:
-        page: int (default 1)
-        page_size: int (default 20, max 100)
-        status: str (optional, filter by status: running/stopped/all)
-        execution_mode: str (optional, live/signal — omit or all for any)
-        search: str (optional, search by strategy name/symbol/username)
-        sort_by: str (optional, whitelist; default status+updated_at)
-        sort_order: str (optional, asc or desc; default desc when sort_by set)
+    ---
+    tags:
+      - Users
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: page
+        in: query
+        type: integer
+        required: false
+        description: Page number (default 1)
+      - name: page_size
+        in: query
+        type: integer
+        required: false
+        description: Page size (default 20, max 100)
+      - name: status
+        in: query
+        type: string
+        required: false
+        description: Filter by status (running/stopped/all)
+      - name: execution_mode
+        in: query
+        type: string
+        required: false
+        description: Filter by execution mode (live/signal)
+      - name: search
+        in: query
+        type: string
+        required: false
+        description: Search by strategy name/symbol/username
+      - name: sort_by
+        in: query
+        type: string
+        required: false
+        description: Sort field (id, updated_at, created_at, strategy_name, symbol, status, execution_mode, leverage, total_pnl, trade_count, position_count, total_equity)
+      - name: sort_order
+        in: query
+        type: string
+        required: false
+        description: Sort direction (asc or desc, default desc)
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     try:
         page = request.args.get('page', 1, type=int)
@@ -1508,14 +2182,45 @@ def _ensure_usdt_admin_columns():
 @admin_required
 def get_admin_orders():
     """
-    Get all orders across the system (admin only).
-    Lists USDT on-chain membership orders only (qd_usdt_orders).
+    Get all USDT on-chain membership orders across the system (admin only).
 
-    Query params:
-        page: int (default 1)
-        page_size: int (default 20, max 100)
-        status: str (optional, filter by status: paid/pending/confirmed/expired/all)
-        search: str (optional, search by username/email)
+    ---
+    tags:
+      - Users
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: page
+        in: query
+        type: integer
+        required: false
+        description: Page number (default 1)
+      - name: page_size
+        in: query
+        type: integer
+        required: false
+        description: Page size (default 20, max 100)
+      - name: status
+        in: query
+        type: string
+        required: false
+        description: Filter by status (paid/pending/confirmed/expired/all)
+      - name: search
+        in: query
+        type: string
+        required: false
+        description: Search by username/email/nickname
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     try:
         page = request.args.get('page', 1, type=int)
@@ -1659,32 +2364,51 @@ def get_admin_orders():
 @admin_required
 def manual_confirm_order(order_id: int):
     """
-    Admin-only "rescue" lever for USDT orders.
+    Admin-only manual confirmation for USDT orders.
 
-    Use case: the buyer paid the correct amount to the correct receiving
-    address, but the on-chain reconciler missed the transaction (RPC
-    outage, exotic wallet, chain-specific edge case, off-chain mistake
-    where the customer used a slightly different amount than the order
-    suffix demanded, etc.). Without this endpoint the admin's only option
-    is to ``UPDATE qd_usdt_orders ...`` by hand and then somehow trigger
-    ``purchase_membership``; this surface does both atomically and leaves
-    an audit trail.
+    Flips the order to 'confirmed', stamps audit fields, and grants membership.
 
-    Body:
-        {
-            "tx_hash": "<on-chain tx hash>",     # required
-            "note":    "<free-form audit note>"  # optional
-        }
-
-    Behavior:
-        - Flips the order to 'confirmed'.
-        - Stamps tx_hash + paid_at (if empty) + confirmed_at + admin_note
-          + manual_confirmed_by + matched_via='manual_admin'.
-        - Calls ``purchase_membership`` exactly once per order (idempotent
-          on re-submit — already-confirmed orders only refresh the audit
-          fields, no double-grant).
-        - Refuses ``status='cancelled'`` orders so the admin doesn't
-          accidentally resurrect a deliberately-cancelled refund.
+    ---
+    tags:
+      - Users
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: order_id
+        in: path
+        type: integer
+        required: true
+        description: USDT order ID to confirm
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              tx_hash:
+                type: string
+                description: On-chain transaction hash (required)
+              note:
+                type: string
+                description: Free-form audit note (optional)
+            required:
+              - tx_hash
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      400:
+        description: Missing tx_hash, order cancelled, or tx_hash too long
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      404:
+        description: Order not found
+      500:
+        description: Billing failure after confirmation
     """
     try:
         admin_user_id = getattr(g, 'user_id', None)
@@ -1823,12 +2547,41 @@ def manual_confirm_order(order_id: int):
 def get_admin_ai_stats():
     """
     Get AI analysis usage statistics across the system (admin only).
+
     Does NOT expose analysis results, only aggregated counts/stats.
 
-    Query params:
-        page: int (default 1)
-        page_size: int (default 20, max 100)
-        search: str (optional, search by username)
+    ---
+    tags:
+      - Users
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: page
+        in: query
+        type: integer
+        required: false
+        description: Page number for per-user stats (default 1)
+      - name: page_size
+        in: query
+        type: integer
+        required: false
+        description: Page size (default 20, max 100)
+      - name: search
+        in: query
+        type: string
+        required: false
+        description: Search by username
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     try:
         page = request.args.get('page', 1, type=int)
@@ -2065,10 +2818,27 @@ def get_admin_ai_stats():
 @login_required
 @admin_required
 def get_admin_user_stats():
-    """KPI dashboard data for the User Management tab (admin only).
+    """
+    KPI dashboard data for the User Management tab (admin only).
 
-    Returns a single envelope with `summary`, `growth`, `activity`.
-    See `app.services.user_stats_service` for the schema of each section.
+    Returns a single envelope with summary, growth, and activity data.
+
+    ---
+    tags:
+      - Users
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     try:
         from app.services.user_stats_service import get_user_admin_stats

@@ -21,7 +21,39 @@ experiment_runner = ExperimentRunnerService()
 @experiment_bp.route('/regime/detect', methods=['POST'])
 @login_required
 def detect_market_regime():
-    """Detect the current market regime for a symbol/timeframe/date range."""
+    """
+    Detect the current market regime for a symbol/timeframe/date range.
+
+    ---
+    tags:
+      - Experiment
+    security:
+      - BearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            description: "Market regime detection parameters (symbol, timeframe, date range)"
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      400:
+        description: Invalid parameters
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     try:
         payload = request.get_json() or {}
         regime = experiment_runner.detect_regime(payload)
@@ -42,7 +74,39 @@ def detect_market_regime():
 @experiment_bp.route('/pipeline/run', methods=['POST'])
 @login_required
 def run_experiment_pipeline():
-    """Legacy grid-search pipeline (kept for backward compat)."""
+    """
+    Legacy grid-search experiment pipeline.
+
+    ---
+    tags:
+      - Experiment
+    security:
+      - BearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            description: "Pipeline configuration payload"
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      400:
+        description: Request body required or invalid
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     try:
         payload = request.get_json() or {}
         if not payload:
@@ -68,6 +132,35 @@ def ai_optimize():
       - event: progress   (partial update per round)
       - event: done       (final result)
       - event: error      (pipeline failure)
+
+    ---
+    tags:
+      - Experiment
+    security:
+      - BearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            description: "AI optimization pipeline configuration payload"
+    responses:
+      200:
+        description: SSE stream of progress, done, or error events
+        content:
+          text/event-stream:
+            schema:
+              type: string
+              description: "Server-Sent Events stream"
+      400:
+        description: Request body required
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
     """
     payload = request.get_json() or {}
     if not payload:
@@ -118,7 +211,39 @@ def ai_optimize():
 @experiment_bp.route('/ai-optimize-sync', methods=['POST'])
 @login_required
 def ai_optimize_sync():
-    """Non-streaming version (simpler client integration)."""
+    """
+    Non-streaming AI optimization pipeline.
+
+    ---
+    tags:
+      - Experiment
+    security:
+      - BearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            description: "AI optimization pipeline configuration payload"
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      400:
+        description: Request body required or pipeline error
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     payload = request.get_json() or {}
     if not payload:
         return jsonify({'code': 0, 'msg': 'Request body is required', 'data': None}), 400
@@ -139,7 +264,36 @@ def ai_optimize_sync():
 def structured_tune():
     """
     Grid or random search over explicit parameterSpace (no LLM).
-    Same response shape as ai-optimize-sync for IDE compatibility.
+
+    ---
+    tags:
+      - Experiment
+    security:
+      - BearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            description: "Structured tune configuration with parameterSpace"
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      400:
+        description: Request body required or invalid parameters
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     payload = request.get_json() or {}
     if not payload:
@@ -161,7 +315,52 @@ def structured_tune():
 @experiment_bp.route('/save-strategy', methods=['POST'])
 @login_required
 def save_experiment_strategy():
-    """Save the best experiment candidate as a strategy record."""
+    """
+    Save the best experiment candidate as a strategy record.
+
+    ---
+    tags:
+      - Experiment
+    security:
+      - BearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - bestOutput
+              - strategyName
+            properties:
+              bestOutput:
+                type: string
+                description: "Best experiment output (or bestStrategyOutput)"
+              strategyName:
+                type: string
+                description: "Name for the saved strategy"
+              marketCategory:
+                type: string
+                default: Crypto
+                description: "Market category (e.g. Crypto, USStock)"
+    responses:
+      200:
+        description: Strategy saved successfully
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      400:
+        description: Missing required fields
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     try:
         payload = request.get_json() or {}
         best_output = payload.get('bestOutput') or payload.get('bestStrategyOutput')

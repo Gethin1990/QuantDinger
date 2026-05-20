@@ -115,18 +115,69 @@ def _release_inflight(key: str):
 def analyze():
     """
     Fast AI analysis for any symbol.
-    
-    POST /api/fast-analysis/analyze
-    Body: {
-        "market": "Crypto" | "USStock" | "Forex" | ...,
-        "symbol": "BTC/USDT" | "AAPL" | ...,
-        "language": "zh-CN" | "en-US" (optional),
-        "model": "openai/gpt-4o" (optional),
-        "timeframe": "1D" (optional)
-    }
-    
-    Returns:
-        Fast analysis result with actionable recommendations.
+
+    ---
+    tags:
+      - Fast Analysis
+    security:
+      - BearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - market
+              - symbol
+            properties:
+              market:
+                type: string
+                description: "Market type (e.g. Crypto, USStock, Forex)"
+                example: Crypto
+              symbol:
+                type: string
+                description: "Symbol to analyze"
+                example: BTC/USDT
+              language:
+                type: string
+                default: en-US
+                description: "Response language (zh-CN or en-US)"
+              model:
+                type: string
+                nullable: true
+                description: "LLM model override"
+              timeframe:
+                type: string
+                default: "1D"
+                description: "Analysis timeframe"
+              async_submit:
+                type: boolean
+                default: false
+                description: "Submit as async background task"
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      400:
+        description: Missing required fields or insufficient credits
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      429:
+        description: Analysis already in progress for this symbol/timeframe
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     try:
         data = request.get_json() or {}
@@ -314,14 +365,66 @@ def analyze():
 @login_required
 def analyze_legacy():
     """
-    Fast analysis with legacy format output.
-    For backward compatibility with existing frontend.
-    
-    POST /api/fast-analysis/analyze-legacy
-    Body: Same as /analyze
-    
-    Returns:
-        Result in multi-agent format for frontend compatibility.
+    Fast analysis with legacy format output for backward compatibility.
+
+    ---
+    tags:
+      - Fast Analysis
+    security:
+      - BearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - market
+              - symbol
+            properties:
+              market:
+                type: string
+                description: "Market type (e.g. Crypto, USStock, Forex)"
+                example: Crypto
+              symbol:
+                type: string
+                description: "Symbol to analyze"
+                example: BTC/USDT
+              language:
+                type: string
+                default: en-US
+                description: "Response language (zh-CN or en-US)"
+              model:
+                type: string
+                nullable: true
+                description: "LLM model override"
+              timeframe:
+                type: string
+                default: "1D"
+                description: "Analysis timeframe"
+    responses:
+      200:
+        description: Success (result in multi-agent format)
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      400:
+        description: Missing required fields or insufficient credits
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      429:
+        description: Analysis already in progress for this symbol/timeframe
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     try:
         data = request.get_json() or {}
@@ -456,8 +559,56 @@ def analyze_legacy():
 def get_history():
     """
     Get analysis history for a symbol.
-    
-    GET /api/fast-analysis/history?market=Crypto&symbol=BTC/USDT&days=7&limit=10
+
+    ---
+    tags:
+      - Fast Analysis
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: market
+        in: query
+        required: true
+        schema:
+          type: string
+        description: "Market type"
+      - name: symbol
+        in: query
+        required: true
+        schema:
+          type: string
+        description: "Symbol to query history for"
+      - name: days
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 7
+        description: "Number of days to look back"
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 10
+        description: "Max number of records (capped at 50)"
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      400:
+        description: Missing required query params
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     try:
         market = request.args.get('market', '').strip()
@@ -498,8 +649,38 @@ def get_history():
 def get_all_history():
     """
     Get all analysis history with pagination.
-    
-    GET /api/fast-analysis/history/all?page=1&pagesize=20
+
+    ---
+    tags:
+      - Fast Analysis
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 1
+        description: "Page number"
+      - name: pagesize
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 20
+        description: "Page size (capped at 50)"
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     try:
         page = int(request.args.get('page', 1))
@@ -536,8 +717,36 @@ def get_all_history():
 def delete_history(memory_id: int):
     """
     Delete a history record.
-    
-    DELETE /api/fast-analysis/history/123
+
+    ---
+    tags:
+      - Fast Analysis
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: memory_id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: "History record ID to delete"
+    responses:
+      200:
+        description: Deleted successfully
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      404:
+        description: Record not found or no permission
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     try:
         # Get current user's ID to ensure they can only delete their own records
@@ -573,12 +782,50 @@ def delete_history(memory_id: int):
 def submit_feedback():
     """
     Submit user feedback on an analysis.
-    
-    POST /api/fast-analysis/feedback
-    Body: {
-        "memory_id": 123,
-        "feedback": "helpful" | "not_helpful" | "accurate" | "inaccurate"
-    }
+
+    ---
+    tags:
+      - Fast Analysis
+    security:
+      - BearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - memory_id
+              - feedback
+            properties:
+              memory_id:
+                type: integer
+                description: "Analysis memory ID to give feedback on"
+              feedback:
+                type: string
+                enum:
+                  - helpful
+                  - not_helpful
+                  - accurate
+                  - inaccurate
+                description: "Feedback type"
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      400:
+        description: Missing or invalid fields
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     try:
         data = request.get_json() or {}
@@ -624,8 +871,43 @@ def submit_feedback():
 def get_performance():
     """
     Get AI analysis performance statistics.
-    
-    GET /api/fast-analysis/performance?market=Crypto&symbol=BTC/USDT&days=30
+
+    ---
+    tags:
+      - Fast Analysis
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: market
+        in: query
+        required: false
+        schema:
+          type: string
+        description: "Filter by market type"
+      - name: symbol
+        in: query
+        required: false
+        schema:
+          type: string
+        description: "Filter by symbol"
+      - name: days
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 30
+        description: "Number of days to look back"
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     try:
         market = request.args.get('market', '').strip() or None
@@ -655,8 +937,42 @@ def get_performance():
 def get_similar_patterns():
     """
     Get similar historical patterns for current market conditions.
-    
-    GET /api/fast-analysis/similar-patterns?market=Crypto&symbol=BTC/USDT
+
+    ---
+    tags:
+      - Fast Analysis
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: market
+        in: query
+        required: true
+        schema:
+          type: string
+        description: "Market type"
+      - name: symbol
+        in: query
+        required: true
+        schema:
+          type: string
+        description: "Symbol to find similar patterns for"
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      400:
+        description: Missing required query params
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     try:
         market = request.args.get('market', '').strip()

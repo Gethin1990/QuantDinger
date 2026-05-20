@@ -38,7 +38,26 @@ def _placeholder_status():
 @alpaca_bp.route('/status', methods=['GET'])
 @login_required
 def get_status():
-    """Get connection status. GET /api/alpaca/status"""
+    """
+    Get connection status.
+
+    ---
+    tags:
+      - Alpaca
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     try:
         client = _sessions.get()
         if client is None:
@@ -53,13 +72,48 @@ def get_status():
 @login_required
 def connect():
     """
-    Connect to Alpaca. POST /api/alpaca/connect
-    Body: {
-        "apiKey": "PK...",        // Required (PK prefix = paper, AK = live)
-        "secretKey": "...",       // Required
-        "paper": true,            // Optional, default true
-        "baseUrl": ""             // Optional, override
-    }
+    Connect to Alpaca.
+
+    ---
+    tags:
+      - Alpaca
+    security:
+      - BearerAuth: []
+    requestBody:
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - apiKey
+              - secretKey
+            properties:
+              apiKey:
+                type: string
+                description: "Alpaca API key (PK prefix = paper, AK = live)"
+              secretKey:
+                type: string
+                description: Alpaca secret key
+              paper:
+                type: boolean
+                description: Use paper trading
+                default: true
+              baseUrl:
+                type: string
+                description: Override base URL
+    responses:
+      200:
+        description: Connected successfully
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      400:
+        description: Connection failed
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     try:
         data = request.get_json() or {}
@@ -101,7 +155,26 @@ def connect():
 @alpaca_bp.route('/disconnect', methods=['POST'])
 @login_required
 def disconnect():
-    """Disconnect from Alpaca. POST /api/alpaca/disconnect"""
+    """
+    Disconnect from Alpaca.
+
+    ---
+    tags:
+      - Alpaca
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Disconnected
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     try:
         _sessions.disconnect_current()
         return jsonify({"success": True, "message": "Disconnected"})
@@ -122,7 +195,26 @@ def _require_connected_client():
 @alpaca_bp.route('/account', methods=['GET'])
 @login_required
 def get_account():
-    """Get account information. GET /api/alpaca/account"""
+    """
+    Get account information.
+
+    ---
+    tags:
+      - Alpaca
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     try:
         client, err = _require_connected_client()
         if err is not None:
@@ -136,7 +228,26 @@ def get_account():
 @alpaca_bp.route('/positions', methods=['GET'])
 @login_required
 def get_positions():
-    """Get positions. GET /api/alpaca/positions"""
+    """
+    Get positions.
+
+    ---
+    tags:
+      - Alpaca
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     try:
         client, err = _require_connected_client()
         if err is not None:
@@ -150,7 +261,26 @@ def get_positions():
 @alpaca_bp.route('/orders', methods=['GET'])
 @login_required
 def get_orders():
-    """Get open orders. GET /api/alpaca/orders"""
+    """
+    Get open orders.
+
+    ---
+    tags:
+      - Alpaca
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     try:
         client, err = _require_connected_client()
         if err is not None:
@@ -167,16 +297,64 @@ def get_orders():
 @login_required
 def place_order():
     """
-    Place an order. POST /api/alpaca/order
-    Body: {
-        "symbol": "AAPL",           // Required
-        "side": "buy",              // Required, buy or sell
-        "quantity": 10,             // Required, number of shares
-        "marketType": "USStock",    // Optional, USStock or crypto
-        "orderType": "market",      // Optional, market or limit
-        "price": 150.00,            // Required for limit
-        "extendedHours": false      // Optional, for limit orders pre/post-market
-    }
+    Place an order.
+
+    ---
+    tags:
+      - Alpaca
+    security:
+      - BearerAuth: []
+    requestBody:
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - symbol
+              - side
+              - quantity
+            properties:
+              symbol:
+                type: string
+                description: Symbol code
+              side:
+                type: string
+                enum:
+                  - buy
+                  - sell
+              quantity:
+                type: number
+                description: Number of shares
+              marketType:
+                type: string
+                description: "USStock or crypto"
+                default: USStock
+              orderType:
+                type: string
+                enum:
+                  - market
+                  - limit
+                default: market
+              price:
+                type: number
+                description: Required for limit orders
+              extendedHours:
+                type: boolean
+                description: Enable pre/post-market for limit orders
+                default: false
+    responses:
+      200:
+        description: Order placed
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      400:
+        description: Invalid order parameters
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     try:
         client, err = _require_connected_client()
@@ -228,7 +406,33 @@ def place_order():
 @alpaca_bp.route('/order/<order_id>', methods=['DELETE'])
 @login_required
 def cancel_order(order_id):
-    """Cancel order. DELETE /api/alpaca/order/<order_id>"""
+    """
+    Cancel order.
+
+    ---
+    tags:
+      - Alpaca
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: order_id
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Order ID to cancel
+    responses:
+      200:
+        description: Order cancelled
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     try:
         client, err = _require_connected_client()
         if err is not None:
@@ -245,7 +449,42 @@ def cancel_order(order_id):
 @alpaca_bp.route('/quote/<symbol>', methods=['GET'])
 @login_required
 def get_quote(symbol):
-    """Get real-time quote. GET /api/alpaca/quote/<symbol>?marketType=USStock"""
+    """
+    Get real-time quote.
+
+    ---
+    tags:
+      - Alpaca
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: symbol
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Symbol code
+      - name: marketType
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Market type
+        default: USStock
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      400:
+        description: Quote failed
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     try:
         client, err = _require_connected_client()
         if err is not None:

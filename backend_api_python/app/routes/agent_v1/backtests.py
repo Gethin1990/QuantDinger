@@ -79,7 +79,94 @@ def _run_backtest(payload: dict) -> Any:
 @agent_v1_bp.route("/backtests", methods=["POST"])
 @agent_required(SCOPE_B)
 def create_backtest():
-    """Submit a backtest job. Returns 202 with `job_id` for polling."""
+    """Submit a backtest job. Returns 202 with `job_id` for polling.
+
+    Requires agent token with B scope.
+
+    ---
+    tags:
+      - Agent V1
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - code
+              - symbol
+              - start_date
+              - end_date
+            properties:
+              code:
+                type: string
+                description: Indicator/strategy code to backtest
+              indicator_code:
+                type: string
+                description: Alias for code
+              market:
+                type: string
+                default: Crypto
+                description: Market identifier
+              symbol:
+                type: string
+                description: Symbol to backtest (e.g. BTC/USDT)
+              timeframe:
+                type: string
+                default: "1D"
+                description: Bar timeframe
+              start_date:
+                type: string
+                format: date
+                description: Start date (YYYY-MM-DD)
+              end_date:
+                type: string
+                format: date
+                description: End date (YYYY-MM-DD)
+              initial_capital:
+                type: number
+                default: 10000
+              commission:
+                type: number
+                default: 0.001
+              slippage:
+                type: number
+                default: 0.0
+              leverage:
+                type: integer
+                default: 1
+              trade_direction:
+                type: string
+                enum: [long, short, both]
+                default: long
+              strategy_config:
+                type: object
+              indicator_params:
+                type: object
+    responses:
+      202:
+        description: Backtest job queued
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentResponseEnvelope'
+      400:
+        description: Invalid input
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentErrorResponse'
+      401:
+        description: Agent token required
+      403:
+        description: Market or instrument not allowed
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentErrorResponse'
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     body, err = get_json_or_400()
     if err:
         return err

@@ -377,7 +377,20 @@ def create_app(config_name='default'):
 
     from app.routes import register_routes
     register_routes(app)
-    
+
+    # Swagger/OpenAPI documentation
+    try:
+        from flasgger import Swagger
+        from app.swagger.template import get_swagger_template
+        Swagger(
+            app,
+            config={"openapi": "3.0.3"},
+            template=get_swagger_template(),
+            merge=True,
+        )
+    except Exception as e:
+        logger.warning(f"Swagger initialization skipped: {e}")
+
     # Startup hooks.
     with app.app_context():
         start_pending_order_worker()

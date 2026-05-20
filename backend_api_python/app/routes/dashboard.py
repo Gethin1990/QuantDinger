@@ -354,7 +354,24 @@ def _compute_strategy_stats(trades: List[Dict[str, Any]], strategies: List[Dict[
 @login_required
 def summary():
     """
-    Return dashboard summary used by the frontend dashboard view (private Vue repo).
+    Return dashboard summary used by the frontend dashboard view.
+
+    ---
+    tags:
+      - Dashboard
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     try:
         user_id = g.user_id
@@ -642,6 +659,34 @@ def summary():
 def pending_orders():
     """
     Return pending orders list for dashboard page.
+
+    ---
+    tags:
+      - Dashboard
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: page
+        in: query
+        type: integer
+        required: false
+        description: Page number (default 1)
+      - name: pageSize
+        in: query
+        type: integer
+        required: false
+        description: Page size (default 20, max 200)
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     try:
         user_id = g.user_id
@@ -760,7 +805,34 @@ def pending_orders():
 @login_required
 def delete_pending_order(order_id: int):
     """
-    Delete a pending order record (dashboard operation).
+    Delete a pending order record.
+
+    ---
+    tags:
+      - Dashboard
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: order_id
+        in: path
+        type: integer
+        required: true
+        description: Pending order ID to delete
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      400:
+        description: Invalid id or order is in processing state
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      404:
+        description: Order not found
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     try:
         user_id = g.user_id

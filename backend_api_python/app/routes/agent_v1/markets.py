@@ -41,6 +41,23 @@ def list_markets():
       2. Per-deployment visibility (``ENABLED_MARKETS`` / legacy ``SHOW_*``),
          resolved by :func:`app.utils.market_visibility.is_market_visible` so
          the Agent API stays in lock-step with the watchlist picker.
+
+    Requires agent token with R scope.
+
+    ---
+    tags:
+      - Agent V1
+    responses:
+      200:
+        description: List of allowed markets
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentResponseEnvelope'
+      401:
+        description: Agent token required
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     visible = [
         m for m in _MARKETS
@@ -54,9 +71,50 @@ def list_markets():
 def market_symbols(market: str):
     """Search symbols within a market.
 
-    Query params:
-        keyword: substring/code to match (case-insensitive)
-        limit:   1..100 (default 20)
+    Requires agent token with R scope.
+
+    ---
+    tags:
+      - Agent V1
+    parameters:
+      - name: market
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Market identifier (e.g. USStock, Crypto, Forex)
+      - name: keyword
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Substring or code to match (case-insensitive). If empty, returns hot symbols.
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+        description: Maximum number of symbols to return
+    responses:
+      200:
+        description: List of matching symbols
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentResponseEnvelope'
+      401:
+        description: Agent token required
+      403:
+        description: Market not allowed for this token
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentErrorResponse'
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     if not market_allowed(market):
         return error(403, f"Market not allowed for this token: {market}", http=403)
@@ -76,11 +134,73 @@ def market_symbols(market: str):
 def klines():
     """OHLCV bars.
 
-    Query params:
-        market, symbol     (required)
-        timeframe          (default 1D)
-        limit              1..2000 (default 300)
-        before_time        unix seconds (optional, for backwards pagination)
+    Requires agent token with R scope.
+
+    ---
+    tags:
+      - Agent V1
+    parameters:
+      - name: market
+        in: query
+        required: true
+        schema:
+          type: string
+        description: Market identifier (e.g. USStock, Crypto)
+      - name: symbol
+        in: query
+        required: true
+        schema:
+          type: string
+        description: Symbol to query (e.g. AAPL, BTC/USDT)
+      - name: timeframe
+        in: query
+        required: false
+        schema:
+          type: string
+          default: "1D"
+        description: Bar timeframe (e.g. 1m, 5m, 1H, 1D)
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 2000
+          default: 300
+        description: Maximum number of bars to return
+      - name: before_time
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: Unix timestamp in seconds for backwards pagination
+    responses:
+      200:
+        description: OHLCV bar data
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentResponseEnvelope'
+      400:
+        description: Missing required parameters or invalid before_time
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentErrorResponse'
+      401:
+        description: Agent token required
+      403:
+        description: Market or instrument not allowed
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentErrorResponse'
+      502:
+        description: Kline fetch failed
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentErrorResponse'
     """
     market = (request.args.get("market") or "").strip()
     symbol = (request.args.get("symbol") or "").strip()
@@ -126,7 +246,54 @@ def klines():
 @agent_v1_bp.route("/price", methods=["GET"])
 @agent_required(SCOPE_R)
 def price():
-    """Latest price for a symbol."""
+    """Latest price for a symbol.
+
+    Requires agent token with R scope.
+
+    ---
+    tags:
+      - Agent V1
+    parameters:
+      - name: market
+        in: query
+        required: true
+        schema:
+          type: string
+        description: Market identifier (e.g. USStock, Crypto)
+      - name: symbol
+        in: query
+        required: true
+        schema:
+          type: string
+        description: Symbol to query (e.g. AAPL, BTC/USDT)
+    responses:
+      200:
+        description: Latest price data
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentResponseEnvelope'
+      400:
+        description: Missing required parameters
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentErrorResponse'
+      401:
+        description: Agent token required
+      403:
+        description: Market or instrument not allowed
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentErrorResponse'
+      502:
+        description: Price fetch failed
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentErrorResponse'
+    """
     market = (request.args.get("market") or "").strip()
     symbol = (request.args.get("symbol") or "").strip()
     if not market or not symbol:

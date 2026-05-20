@@ -111,16 +111,44 @@ def _normalize_lang(lang: str | None) -> str:
 
 @backtest_bp.route('/backtest/precision-info', methods=['GET'])
 def get_precision_info():
-    """
-    获取回测精度信息（用于前端提示）
-    
-    Params (Query String):
-        market: 市场类型
-        startDate: 开始日期 (YYYY-MM-DD)
-        endDate: 结束日期 (YYYY-MM-DD)
-        
-    Returns:
-        精度信息，包含推荐的执行时间框架和预估K线数量
+    """Get backtest precision info (recommended execution timeframe and estimated bar count).
+
+    ---
+    tags:
+      - Backtest
+    parameters:
+      - name: market
+        in: query
+        required: false
+        schema:
+          type: string
+          default: crypto
+        description: Market type
+      - name: startDate
+        in: query
+        required: true
+        schema:
+          type: string
+          format: date
+        description: Start date (YYYY-MM-DD)
+      - name: endDate
+        in: query
+        required: true
+        schema:
+          type: string
+          format: date
+        description: End date (YYYY-MM-DD)
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      400:
+        description: Missing or invalid date parameters
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     try:
         # Use request.args for GET params
@@ -149,20 +177,98 @@ def get_precision_info():
 @backtest_bp.route('/backtest', methods=['POST'])
 @login_required
 def run_backtest():
-    """
-    Run indicator backtest for the current user.
-    
-    Params:
-        indicatorId: Indicator ID (optional)
-        indicatorCode: Indicator Python code
-        symbol: Symbol
-        market: Market type
-        timeframe: Timeframe
-        startDate: Start date (YYYY-MM-DD)
-        endDate: End date (YYYY-MM-DD)
-        initialCapital: Initial capital (default 10000)
-        commission: Commission rate (default 0.001)
-        enableMtf: Enable multi-timeframe backtest (default true, only for crypto)
+    """Run indicator backtest for the current user.
+
+    ---
+    tags:
+      - Backtest
+    security:
+      - BearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - indicatorCode
+              - symbol
+              - market
+              - timeframe
+              - startDate
+              - endDate
+            properties:
+              indicatorId:
+                type: integer
+                description: Indicator ID (load code from DB if indicatorCode is empty)
+              indicatorCode:
+                type: string
+                description: Indicator Python source code
+              symbol:
+                type: string
+                description: Trading symbol (e.g. "BTC/USDT")
+              market:
+                type: string
+                description: Market type (e.g. "Crypto", "USStock")
+              timeframe:
+                type: string
+                description: Backtest timeframe (e.g. "1D", "1H", "5m")
+              startDate:
+                type: string
+                format: date
+                description: Backtest start date (YYYY-MM-DD)
+              endDate:
+                type: string
+                format: date
+                description: Backtest end date (YYYY-MM-DD)
+              initialCapital:
+                type: number
+                default: 10000
+                description: Initial capital
+              commission:
+                type: number
+                default: 0.001
+                description: Commission rate
+              slippage:
+                type: number
+                default: 0.0
+                description: Slippage rate
+              leverage:
+                type: integer
+                default: 1
+                description: Leverage multiplier
+              tradeDirection:
+                type: string
+                enum:
+                  - long
+                  - short
+                  - both
+                default: long
+                description: Trade direction
+              strategyConfig:
+                type: object
+                description: Strategy configuration (risk, position, scale settings)
+              enableMtf:
+                type: boolean
+                default: true
+                description: Enable multi-timeframe backtest (crypto only)
+              persist:
+                type: boolean
+                default: true
+                description: Whether to persist the backtest run to the database
+    responses:
+      200:
+        description: Backtest succeeded
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      400:
+        description: Missing or invalid parameters
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     try:
         data = request.get_json()
@@ -378,16 +484,76 @@ def run_backtest():
 @backtest_bp.route('/backtest/history', methods=['GET'])
 @login_required
 def get_backtest_history():
-    """
-    Get backtest run history for the current user.
+    """Get backtest run history for the current user.
 
-    Params (Query String):
-        limit: Page size (default 50, max 200)
-        offset: Offset (default 0)
-        indicatorId: Optional indicator id filter
-        symbol: Optional symbol filter
-        market: Optional market filter
-        timeframe: Optional timeframe filter
+    ---
+    tags:
+      - Backtest
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 50
+          maximum: 200
+        description: Page size
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 0
+        description: Offset for pagination
+      - name: indicatorId
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: Filter by indicator ID
+      - name: strategyId
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: Filter by strategy ID
+      - name: runType
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Filter by run type
+      - name: symbol
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Filter by symbol
+      - name: market
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Filter by market type
+      - name: timeframe
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Filter by timeframe
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     try:
         # Use current user's ID
@@ -425,11 +591,35 @@ def get_backtest_history():
 @backtest_bp.route('/backtest/get', methods=['GET'])
 @login_required
 def get_backtest_run():
-    """
-    Get a backtest run detail by run id for the current user.
+    """Get a backtest run detail by run id for the current user.
 
-    Params (Query String):
-        runId: Backtest run id (required)
+    ---
+    tags:
+      - Backtest
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: runId
+        in: query
+        required: true
+        schema:
+          type: integer
+        description: Backtest run ID
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      400:
+        description: runId is required
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      404:
+        description: Run not found
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     try:
         user_id = g.user_id
@@ -665,12 +855,45 @@ def _heuristic_ai_advice(runs: list[dict], lang: str) -> str:
 @backtest_bp.route('/backtest/aiAnalyze', methods=['POST'])
 @login_required
 def ai_analyze_backtest_runs():
-    """
-    AI analyze selected backtest runs and provide strategy_config tuning suggestions
-    for the current user.
+    """AI-analyze selected backtest runs and provide strategy_config tuning suggestions.
 
-    Params:
-        runIds: list[int] (required)
+    ---
+    tags:
+      - Backtest
+    security:
+      - BearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - runIds
+            properties:
+              runIds:
+                type: array
+                items:
+                  type: integer
+                description: List of backtest run IDs to analyze (max 10)
+              lang:
+                type: string
+                description: Output language locale (e.g. "zh-CN", "en-US")
+    responses:
+      200:
+        description: Success with AI or heuristic analysis
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      400:
+        description: runIds is required
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      404:
+        description: Runs not found
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     try:
         data = request.get_json() or {}

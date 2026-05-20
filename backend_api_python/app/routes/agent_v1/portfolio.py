@@ -20,7 +20,25 @@ logger = get_logger(__name__)
 @agent_v1_bp.route("/portfolio/positions", methods=["GET"])
 @agent_required(SCOPE_R)
 def positions():
-    """Manual portfolio positions for the calling tenant."""
+    """Manual portfolio positions for the calling tenant.
+
+    Requires agent token with R scope.
+
+    ---
+    tags:
+      - Agent V1
+    responses:
+      200:
+        description: List of portfolio positions
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentResponseEnvelope'
+      401:
+        description: Agent token required
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     try:
         with get_db_connection() as db:
             cur = db.cursor()
@@ -49,7 +67,25 @@ def positions():
 @agent_v1_bp.route("/portfolio/paper-orders", methods=["GET"])
 @agent_required(SCOPE_R)
 def paper_orders():
-    """List recent paper orders the agent has submitted (per tenant)."""
+    """List recent paper orders the agent has submitted (per tenant).
+
+    Requires agent token with R scope.
+
+    ---
+    tags:
+      - Agent V1
+    responses:
+      200:
+        description: List of paper orders
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentResponseEnvelope'
+      401:
+        description: Agent token required
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     try:
         with get_db_connection() as db:
             cur = db.cursor()

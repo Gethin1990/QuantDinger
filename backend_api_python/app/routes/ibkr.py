@@ -49,7 +49,22 @@ def get_status():
     """
     Get connection status.
 
-    GET /api/ibkr/status
+    ---
+    tags:
+      - IBKR
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     try:
         client = _sessions.get()
@@ -73,14 +88,49 @@ def connect():
     """
     Connect to TWS / IB Gateway.
 
-    POST /api/ibkr/connect
-    Body: {
-        "host": "127.0.0.1",      // Optional, default 127.0.0.1
-        "port": 7497,             // Optional, TWS Live:7497, TWS Paper:7496, Gateway Live:4001, Gateway Paper:4002
-        "clientId": 1,            // Optional, default 1
-        "account": "",            // Optional, specify for multi-account
-        "readonly": false         // Optional, readonly mode
-    }
+    ---
+    tags:
+      - IBKR
+    security:
+      - BearerAuth: []
+    requestBody:
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              host:
+                type: string
+                description: TWS/Gateway host
+                default: "127.0.0.1"
+              port:
+                type: integer
+                description: "TWS Live:7497, TWS Paper:7496, Gateway Live:4001, Gateway Paper:4002"
+                default: 7497
+              clientId:
+                type: integer
+                description: Client ID
+                default: 1
+              account:
+                type: string
+                description: Account ID for multi-account setups
+              readonly:
+                type: boolean
+                description: Readonly mode
+                default: false
+    responses:
+      200:
+        description: Connected successfully
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      400:
+        description: Connection failed
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     try:
         data = request.get_json() or {}
@@ -128,7 +178,22 @@ def disconnect():
     """
     Disconnect from IBKR.
 
-    POST /api/ibkr/disconnect
+    ---
+    tags:
+      - IBKR
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Disconnected
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     try:
         _sessions.disconnect_current()
@@ -152,7 +217,22 @@ def get_account():
     """
     Get account information.
 
-    GET /api/ibkr/account
+    ---
+    tags:
+      - IBKR
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     try:
         client, err = _require_connected_client()
@@ -177,7 +257,22 @@ def get_positions():
     """
     Get positions.
 
-    GET /api/ibkr/positions
+    ---
+    tags:
+      - IBKR
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     try:
         client, err = _require_connected_client()
@@ -203,7 +298,22 @@ def get_orders():
     """
     Get open orders.
 
-    GET /api/ibkr/orders
+    ---
+    tags:
+      - IBKR
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     try:
         client, err = _require_connected_client()
@@ -231,15 +341,58 @@ def place_order():
     """
     Place an order.
 
-    POST /api/ibkr/order
-    Body: {
-        "symbol": "AAPL",         // Required, symbol code
-        "side": "buy",            // Required, buy or sell
-        "quantity": 10,           // Required, number of shares
-        "marketType": "USStock",  // Optional, default USStock
-        "orderType": "market",    // Optional, market or limit, default market
-        "price": 150.00           // Required for limit orders
-    }
+    ---
+    tags:
+      - IBKR
+    security:
+      - BearerAuth: []
+    requestBody:
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - symbol
+              - side
+              - quantity
+            properties:
+              symbol:
+                type: string
+                description: Symbol code
+              side:
+                type: string
+                enum:
+                  - buy
+                  - sell
+              quantity:
+                type: number
+                description: Number of shares
+              marketType:
+                type: string
+                description: Market type
+                default: USStock
+              orderType:
+                type: string
+                enum:
+                  - market
+                  - limit
+                default: market
+              price:
+                type: number
+                description: Required for limit orders
+    responses:
+      200:
+        description: Order placed
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      400:
+        description: Invalid order parameters
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     try:
         client, err = _require_connected_client()
@@ -316,7 +469,31 @@ def cancel_order(order_id: int):
     """
     Cancel an order.
 
-    DELETE /api/ibkr/order/<order_id>
+    ---
+    tags:
+      - IBKR
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: order_id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: Order ID to cancel
+    responses:
+      200:
+        description: Order cancelled
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      404:
+        description: Order not found
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     try:
         client, err = _require_connected_client()
@@ -352,7 +529,38 @@ def get_quote():
     """
     Get real-time quote.
 
-    GET /api/ibkr/quote?symbol=AAPL&marketType=USStock
+    ---
+    tags:
+      - IBKR
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: symbol
+        in: query
+        required: true
+        schema:
+          type: string
+        description: Symbol code
+      - name: marketType
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Market type
+        default: USStock
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      400:
+        description: Missing symbol
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     try:
         client, err = _require_connected_client()

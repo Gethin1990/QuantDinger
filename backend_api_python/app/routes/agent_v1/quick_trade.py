@@ -102,7 +102,85 @@ def _record_paper_order(*, body: dict, fill_price: float | None, status: str, no
 @agent_v1_bp.route("/quick-trade/orders", methods=["POST"])
 @agent_required(SCOPE_T)
 def place_order():
-    """Place an order. Paper-only unless explicitly unlocked (see module doc)."""
+    """Place an order. Paper-only unless explicitly unlocked (see module doc).
+
+    Requires agent token with T scope. In paper mode, orders are simulated
+    using the latest market price as the fill.
+
+    ---
+    tags:
+      - Agent V1
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - market
+              - symbol
+              - side
+              - qty
+            properties:
+              market:
+                type: string
+                description: Market identifier (e.g. USStock, Crypto)
+              symbol:
+                type: string
+                description: Symbol to trade (e.g. AAPL, BTC/USDT)
+              side:
+                type: string
+                enum: [buy, sell]
+                description: Order side
+              qty:
+                type: number
+                description: Order quantity (must be positive)
+              quantity:
+                type: number
+                description: Alias for qty
+              order_type:
+                type: string
+                enum: [market, limit]
+                default: market
+              orderType:
+                type: string
+                description: Alias for order_type
+              limit_price:
+                type: number
+                description: Limit price (required if order_type is limit)
+              limitPrice:
+                type: number
+                description: Alias for limit_price
+    responses:
+      200:
+        description: Order placed (paper fill)
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentResponseEnvelope'
+      400:
+        description: Invalid input
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentErrorResponse'
+      401:
+        description: Agent token required
+      403:
+        description: Market or instrument not allowed
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentErrorResponse'
+      500:
+        $ref: '#/components/responses/ServerError'
+      501:
+        description: Live trading not implemented
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentErrorResponse'
+    """
     body, err = get_json_or_400()
     if err:
         return err
@@ -160,6 +238,23 @@ def kill_switch():
 
     This intentionally limits scope to the agent's own surface; revoking live
     exchange orders requires the human admin path (separate, audited).
+
+    Requires agent token with T scope.
+
+    ---
+    tags:
+      - Agent V1
+    responses:
+      200:
+        description: Number of cancelled paper orders
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentResponseEnvelope'
+      401:
+        description: Agent token required
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     with get_db_connection() as db:
         cur = db.cursor()

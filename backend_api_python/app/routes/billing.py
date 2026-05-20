@@ -20,7 +20,26 @@ billing_bp = Blueprint("billing", __name__)
 @billing_bp.route("/plans", methods=["GET"])
 @login_required
 def get_membership_plans():
-    """Get membership plan configuration + current user's billing snapshot."""
+    """
+    Get membership plan configuration and current user's billing snapshot.
+
+    ---
+    tags:
+      - Billing
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     try:
         user_id = getattr(g, "user_id", None)
         svc = get_billing_service()
@@ -37,6 +56,21 @@ def get_membership_plans():
 def purchase_membership():
     """
     Legacy mock checkout (disabled). Use POST /billing/usdt/create and pay on-chain.
+
+    ---
+    tags:
+      - Billing
+    security:
+      - BearerAuth: []
+    responses:
+      403:
+        description: Mock purchase disabled
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
     """
     return jsonify(
         {
@@ -55,9 +89,25 @@ def purchase_membership():
 @billing_bp.route("/usdt/chains", methods=["GET"])
 @login_required
 def usdt_list_chains():
-    """List USDT chains that are enabled AND have a receiving address
-    configured. Chains without an address are auto-hidden by the backend
-    so the frontend chain picker can render the response verbatim.
+    """
+    List USDT chains that are enabled and have a receiving address configured.
+
+    ---
+    tags:
+      - Billing
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     try:
         chains = get_usdt_payment_service().list_chains()
@@ -70,14 +120,55 @@ def usdt_list_chains():
 @billing_bp.route("/usdt/create", methods=["POST"])
 @login_required
 def usdt_create_order():
-    """Create a USDT membership order.
+    """
+    Create a USDT membership order.
 
-    Body:
-      {
-        plan:  "monthly" | "yearly" | "lifetime",
-        chain: "TRC20" | "BEP20" | "ERC20" | "SOL"   # optional; defaults to
-                                                     # the first enabled chain
-      }
+    ---
+    tags:
+      - Billing
+    security:
+      - BearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - plan
+            properties:
+              plan:
+                type: string
+                enum:
+                  - monthly
+                  - yearly
+                  - lifetime
+                description: Membership plan to purchase
+              chain:
+                type: string
+                enum:
+                  - TRC20
+                  - BEP20
+                  - ERC20
+                  - SOL
+                description: USDT chain (defaults to first enabled chain)
+    responses:
+      200:
+        description: Order created successfully
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      400:
+        description: Missing plan or invalid input
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     try:
         user_id = getattr(g, "user_id", None)
@@ -99,7 +190,46 @@ def usdt_create_order():
 @billing_bp.route("/usdt/order/<int:order_id>", methods=["GET"])
 @login_required
 def usdt_get_order(order_id: int):
-    """Get my USDT order; refresh chain status by default."""
+    """
+    Get my USDT order; refresh chain status by default.
+
+    ---
+    tags:
+      - Billing
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: order_id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: USDT order ID
+      - name: refresh
+        in: query
+        required: false
+        schema:
+          type: string
+          default: "1"
+        description: Whether to refresh on-chain status (1/true/yes)
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      404:
+        description: Order not found
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     try:
         user_id = getattr(g, "user_id", None)
         refresh = str(request.args.get("refresh", "1")).lower() in ("1", "true", "yes")

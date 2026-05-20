@@ -18,7 +18,38 @@ _runner = ExperimentRunnerService()
 @agent_v1_bp.route("/experiments/regime/detect", methods=["POST"])
 @agent_required(SCOPE_B)
 def regime_detect():
-    """Synchronous market-regime detection (cheap; no async needed)."""
+    """Synchronous market-regime detection (cheap; no async needed).
+
+    Requires agent token with B scope.
+
+    ---
+    tags:
+      - Agent V1
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            description: Regime detection parameters (passed to ExperimentRunnerService.detect_regime)
+    responses:
+      200:
+        description: Regime detection result
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentResponseEnvelope'
+      400:
+        description: Invalid input or detection failure
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentErrorResponse'
+      401:
+        description: Agent token required
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     body, err = get_json_or_400()
     if err:
         return err
@@ -33,7 +64,38 @@ def regime_detect():
 @agent_v1_bp.route("/experiments/pipeline", methods=["POST"])
 @agent_required(SCOPE_B)
 def submit_pipeline():
-    """Async legacy grid pipeline. Returns 202 + job_id."""
+    """Async legacy grid pipeline. Returns 202 + job_id.
+
+    Requires agent token with B scope.
+
+    ---
+    tags:
+      - Agent V1
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            description: Grid pipeline parameters (passed to ExperimentRunnerService.run_pipeline)
+    responses:
+      202:
+        description: Pipeline job queued
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentResponseEnvelope'
+      400:
+        description: Invalid input
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentErrorResponse'
+      401:
+        description: Agent token required
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     body, err = get_json_or_400()
     if err:
         return err
@@ -65,7 +127,38 @@ def submit_pipeline():
 @agent_v1_bp.route("/experiments/structured-tune", methods=["POST"])
 @agent_required(SCOPE_B)
 def submit_structured_tune():
-    """Async structured (grid/random) tune. Returns 202 + job_id."""
+    """Async structured (grid/random) tune. Returns 202 + job_id.
+
+    Requires agent token with B scope.
+
+    ---
+    tags:
+      - Agent V1
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            description: Structured tune parameters (passed to ExperimentRunnerService.run_structured_tune)
+    responses:
+      202:
+        description: Structured tune job queued
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentResponseEnvelope'
+      400:
+        description: Invalid input
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentErrorResponse'
+      401:
+        description: Agent token required
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     body, err = get_json_or_400()
     if err:
         return err
@@ -94,6 +187,36 @@ def submit_ai_optimize():
     Real-time progress is published via SSE on `/jobs/{job_id}/stream`
     (the runner already supports `on_progress`).  Polling `/jobs/{job_id}`
     for the latest snapshot still works for clients that prefer it.
+
+    Requires agent token with B scope.
+
+    ---
+    tags:
+      - Agent V1
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            description: AI optimization parameters (passed to ExperimentRunnerService.run_ai_pipeline)
+    responses:
+      202:
+        description: AI optimization job queued
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentResponseEnvelope'
+      400:
+        description: Invalid input
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentErrorResponse'
+      401:
+        description: Agent token required
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     body, err = get_json_or_400()
     if err:

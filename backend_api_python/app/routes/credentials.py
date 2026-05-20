@@ -26,7 +26,23 @@ credentials_bp = Blueprint('credentials', __name__)
 def desktop_brokers_policy():
     """
     Whether IBKR / MT5 (local TWS or MT5 terminal) may be configured on this deployment.
-    Frontend uses this to disable options and show guidance before save/test.
+
+    ---
+    tags:
+      - Credentials
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     from app.utils.local_brokers import desktop_broker_cloud_reject_message, local_desktop_brokers_allowed
 
@@ -55,7 +71,26 @@ def _api_key_hint(api_key: str) -> str:
 @credentials_bp.route('/list', methods=['GET'])
 @login_required
 def list_credentials():
-    """List all credentials for the current user."""
+    """
+    List all credentials for the current user.
+
+    ---
+    tags:
+      - Credentials
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     try:
         user_id = g.user_id
 
@@ -117,7 +152,23 @@ def _egress_ipify(url: str) -> str:
 def get_egress_ip():
     """
     Public egress IPv4/IPv6 of this API server (for exchange API key IP whitelist).
-    Uses ipify's v4-only / v6-only endpoints so each family is detected independently.
+
+    ---
+    tags:
+      - Credentials
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     ipv4 = _egress_ipify("https://api4.ipify.org?format=json")
     ipv6 = _egress_ipify("https://api6.ipify.org?format=json")
@@ -138,9 +189,77 @@ def get_egress_ip():
 @credentials_bp.route('/create', methods=['POST'])
 @login_required
 def create_credential():
-    """Create a new credential for the current user.
+    """
+    Create a new credential for the current user.
 
     Supports crypto exchanges, IBKR (US stocks) and MT5 (Forex).
+
+    ---
+    tags:
+      - Credentials
+    security:
+      - BearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              name:
+                type: string
+                description: Display name for the credential
+              exchange_id:
+                type: string
+                description: Exchange identifier (e.g. binance, okx, ibkr, mt5, alpaca)
+              api_key:
+                type: string
+                description: API key (required for crypto exchanges and Alpaca)
+              secret_key:
+                type: string
+                description: Secret key (required for crypto exchanges and Alpaca)
+              passphrase:
+                type: string
+                description: Passphrase (required for some crypto exchanges like OKX)
+              ibkr_host:
+                type: string
+                description: IBKR TWS host (default 127.0.0.1)
+              ibkr_port:
+                type: integer
+                description: IBKR TWS port (default 7497)
+              ibkr_client_id:
+                type: integer
+                description: IBKR client ID (default 7)
+              ibkr_account:
+                type: string
+                description: IBKR account ID
+              mt5_server:
+                type: string
+                description: MT5 server name (required for MT5)
+              mt5_login:
+                type: string
+                description: MT5 login (required for MT5)
+              mt5_password:
+                type: string
+                description: MT5 password (required for MT5)
+              mt5_terminal_path:
+                type: string
+                description: Path to MT5 terminal executable
+            required:
+              - exchange_id
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      400:
+        description: Missing or invalid fields
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     try:
         user_id = g.user_id
@@ -255,7 +374,34 @@ def create_credential():
 @credentials_bp.route('/delete', methods=['DELETE'])
 @login_required
 def delete_credential():
-    """Delete a credential for the current user."""
+    """
+    Delete a credential for the current user.
+
+    ---
+    tags:
+      - Credentials
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: id
+        in: query
+        type: integer
+        required: true
+        description: Credential ID to delete
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      400:
+        description: Missing id parameter
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     try:
         user_id = g.user_id
         cred_id = request.args.get('id', type=int)
@@ -283,6 +429,33 @@ def delete_credential():
 def get_credential():
     """
     Return decrypted credential for form auto-fill.
+
+    ---
+    tags:
+      - Credentials
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: id
+        in: query
+        type: integer
+        required: true
+        description: Credential ID to retrieve
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      400:
+        description: Missing id parameter
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      404:
+        description: Credential not found
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     try:
         user_id = g.user_id

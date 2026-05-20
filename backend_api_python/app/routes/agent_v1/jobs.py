@@ -21,7 +21,41 @@ from ._helpers import clip_int, envelope, error
 @agent_v1_bp.route("/jobs", methods=["GET"])
 @agent_required(SCOPE_R)
 def list_user_jobs():
-    """List recent jobs for this tenant (newest first)."""
+    """List recent jobs for this tenant (newest first).
+
+    Requires agent token with R scope.
+
+    ---
+    tags:
+      - Agent V1
+    parameters:
+      - name: kind
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Filter by job kind (e.g. backtest, experiment_pipeline, structured_tune, ai_optimize)
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 50
+        description: Maximum number of jobs to return
+    responses:
+      200:
+        description: List of jobs
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentResponseEnvelope'
+      401:
+        description: Agent token required
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     kind = (request.args.get("kind") or "").strip() or None
     limit = clip_int(request.args.get("limit"), default=50, lo=1, hi=200)
     rows = list_jobs(user_id=current_user_id(), kind=kind, limit=limit)
@@ -31,7 +65,38 @@ def list_user_jobs():
 @agent_v1_bp.route("/jobs/<job_id>", methods=["GET"])
 @agent_required(SCOPE_R)
 def get_user_job(job_id: str):
-    """Fetch a single job (tenant-scoped)."""
+    """Fetch a single job (tenant-scoped).
+
+    Requires agent token with R scope.
+
+    ---
+    tags:
+      - Agent V1
+    parameters:
+      - name: job_id
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Job ID
+    responses:
+      200:
+        description: Job details
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentResponseEnvelope'
+      401:
+        description: Agent token required
+      404:
+        description: Job not found
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentErrorResponse'
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     row = get_job(job_id, user_id=current_user_id())
     if not row:
         return error(404, "Job not found", http=404)
@@ -58,6 +123,46 @@ def stream_user_job(job_id: str):
     ``Last-Event-ID`` header) to resume from a given sequence number.
     Snapshots never wait for a long-poll if the job already finished —
     the final `result` frame is emitted immediately and the stream closes.
+
+    Requires agent token with R scope.
+
+    ---
+    tags:
+      - Agent V1
+    parameters:
+      - name: job_id
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Job ID to stream
+      - name: since
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: Sequence number to resume from (or use Last-Event-ID header)
+    responses:
+      200:
+        description: SSE event stream
+        content:
+          text/event-stream:
+            schema:
+              type: string
+              description: |
+                Server-Sent Events stream with the following event types:
+                - `snapshot`: Current job state (sent immediately on connect)
+                - `progress`: Partial updates from the runner
+                - `result`: Final job result (status, result, error)
+                - `ping`: Keepalive every ~15s
+      401:
+        description: Agent token required
+      404:
+        description: Job not found
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentErrorResponse'
     """
     user_id = current_user_id()
     row = get_job(job_id, user_id=user_id)

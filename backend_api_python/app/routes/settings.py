@@ -1447,7 +1447,32 @@ def _schema_with_advanced_flags():
 @login_required
 @admin_required
 def get_settings_schema():
-    """获取配置项定义 (admin only)"""
+    """
+    Get settings schema definition (admin only).
+
+    ---
+    tags:
+      - Settings
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      403:
+        description: Admin role required
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     return jsonify({
         'code': 1,
         'msg': 'success',
@@ -1458,7 +1483,26 @@ def get_settings_schema():
 @settings_bp.route('/public-config', methods=['GET'])
 @login_required
 def get_public_config():
-    """Return non-sensitive config values needed by frontend widgets."""
+    """
+    Return non-sensitive config values needed by frontend widgets.
+
+    ---
+    tags:
+      - Settings
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     from app.config.data_sources import CCXTConfig
     return jsonify({
         'code': 1,
@@ -1498,14 +1542,23 @@ def _brand_env(name: str, default: str = '') -> str:
 
 @settings_bp.route('/brand-config', methods=['GET'])
 def get_brand_config():
-    """Public, no-auth endpoint exposing branding / legal / contact info.
+    """
+    Public brand config endpoint (no auth required).
 
-    Drives the frontend's logo, footer, social links, legal modals and version
-    label entirely from backend ENV vars so operators can rebrand a deployment
-    by editing ``.env`` (or the Settings page) — no frontend rebuild required.
+    Exposes branding, legal, contact, social, and mobile app info for the frontend.
 
-    Empty ENV values fall back to the bundled QuantDinger defaults so a fresh
-    install still ships with working links instead of blanks.
+    ---
+    tags:
+      - Settings
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     social_specs = [
         ('GitHub', 'github', 'BRAND_SOCIAL_GITHUB', 'social_github'),
@@ -1558,7 +1611,32 @@ def get_brand_config():
 @login_required
 @admin_required
 def get_settings_values():
-    """获取当前配置值 - 包括敏感信息（真实值）(admin only)"""
+    """
+    Get current settings values including sensitive data (admin only).
+
+    ---
+    tags:
+      - Settings
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      403:
+        description: Admin role required
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     env_values = read_env_file()
     
     # 构建返回数据，返回真实值
@@ -1584,7 +1662,48 @@ def get_settings_values():
 @login_required
 @admin_required
 def save_settings():
-    """保存配置 (admin only)"""
+    """
+    Save settings to .env file (admin only).
+
+    ---
+    tags:
+      - Settings
+    security:
+      - BearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            description: "Settings grouped by category (e.g. ai, trading, billing)"
+            additionalProperties:
+              type: object
+              additionalProperties: true
+    responses:
+      200:
+        description: Settings saved successfully
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      400:
+        description: Invalid request payload
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      403:
+        description: Admin role required
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     try:
         data = request.get_json()
         if not data:
@@ -1645,7 +1764,36 @@ def save_settings():
 @login_required
 @admin_required
 def get_openrouter_balance():
-    """查询 OpenRouter 账户余额 (admin only)"""
+    """
+    Query OpenRouter account balance (admin only).
+
+    ---
+    tags:
+      - Settings
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        description: Invalid or expired API key
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      403:
+        description: Admin role required
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     try:
         import requests
         from app.config.api_keys import APIKeys
@@ -1723,7 +1871,50 @@ def get_openrouter_balance():
 @login_required
 @admin_required
 def test_connection():
-    """测试API连接 (admin only)"""
+    """
+    Test an API connection (admin only).
+
+    ---
+    tags:
+      - Settings
+    security:
+      - BearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - service
+            properties:
+              service:
+                type: string
+                enum:
+                  - openrouter
+                  - finnhub
+                description: "Service to test"
+              api_key:
+                type: string
+                description: "Optional API key override for finnhub"
+    responses:
+      200:
+        description: Connection test result
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      403:
+        description: Admin role required
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     try:
         data = request.get_json()
         service = data.get('service')

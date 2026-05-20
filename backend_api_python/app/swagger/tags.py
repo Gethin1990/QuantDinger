@@ -1,0 +1,27 @@
+"""OpenAPI tag definitions for QuantDinger API."""
+
+SWAGGER_TAGS = [
+    {"name": "Auth", "description": "Authentication: login, registration, OAuth, password management"},
+    {"name": "Users", "description": "User profile and account management"},
+    {"name": "Dashboard", "description": "Dashboard summary and pending orders"},
+    {"name": "Market", "description": "Watchlist, symbol search, market metadata"},
+    {"name": "Global Market", "description": "Global market overview, heatmap, news, calendar, sentiment"},
+    {"name": "Indicators", "description": "Technical indicator data and kline/candlestick queries"},
+    {"name": "Backtest", "description": "Strategy backtesting endpoints"},
+    {"name": "Strategy", "description": "Trading strategy CRUD, live trading control, trade history"},
+    {"name": "Credentials", "description": "Exchange API key vault (crypto, IBKR, MT5, Alpaca)"},
+    {"name": "Portfolio", "description": "Manual positions and AI monitoring tasks"},
+    {"name": "Quick Trade", "description": "Manual/discretionary order placement"},
+    {"name": "IBKR", "description": "Interactive Brokers connection and trading"},
+    {"name": "Alpaca", "description": "Alpaca broker connection and trading"},
+    {"name": "MT5", "description": "MetaTrader 5 connection and trading"},
+    {"name": "AI Chat", "description": "AI chat interface (legacy compatibility)"},
+    {"name": "Fast Analysis", "description": "High-performance AI market analysis"},
+    {"name": "Community", "description": "Indicator marketplace, purchases, reviews"},
+    {"name": "Billing", "description": "Membership plans and USDT payment"},
+    {"name": "Settings", "description": "System configuration (admin only)"},
+    {"name": "Experiment", "description": "Experiment orchestration, regime detection, pipelines"},
+    {"name": "Policy", "description": "Broker/market policy and capability discovery"},
+    {"name": "Health", "description": "Health check and system status"},
+    {"name": "Agent V1", "description": "AI Agent Gateway - versioned API surface for automated agents"},
+]

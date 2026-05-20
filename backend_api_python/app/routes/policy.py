@@ -16,28 +16,43 @@ policy_bp = Blueprint('policy', __name__)
 
 @policy_bp.route('/broker-market', methods=['GET'])
 def get_broker_market_policy():
-    """Return the full broker x market x market_type compatibility matrix.
+    """
+    Return the full broker x market x market_type compatibility matrix.
 
-    Response shape (kept stable for the frontend):
-      {
-        "code": 1,
-        "data": {
-          "broker_markets": {
-              "ibkr":   {"USStock": ["spot"]},
-              "mt5":    {"Forex":   ["spot"]},
-              "alpaca": {"USStock": ["spot"], "Crypto": ["spot"]},
-              "binance": {"Crypto":  ["spot", "swap"]},
-              ...
-          },
-          "long_only_brokers": ["alpaca", "ibkr"],
-          "bot_type_markets": {
-              "grid":       ["Crypto", "Forex"],
-              "martingale": ["Crypto"],
-              "dca":        ["Crypto", "Forex", "USStock"],
-              "trend":      ["Crypto", "Forex", "USStock"]
-          },
-          "live_market_categories": ["Crypto", "Forex", "USStock"]
-        }
-      }
+    ---
+    tags:
+      - Policy
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                code:
+                  type: integer
+                  example: 1
+                data:
+                  type: object
+                  properties:
+                    broker_markets:
+                      type: object
+                      description: Map of broker to supported markets and types
+                    long_only_brokers:
+                      type: array
+                      items:
+                        type: string
+                      description: Brokers that only support long positions
+                    bot_type_markets:
+                      type: object
+                      description: Map of bot type to supported markets
+                    live_market_categories:
+                      type: array
+                      items:
+                        type: string
+                      description: All market categories available for live trading
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     return jsonify({"code": 1, "data": broker_market_policy_dict()})

@@ -154,8 +154,20 @@ def _ensure_watchlist_table():
 @market_bp.route('/config', methods=['GET'])
 def get_public_config():
     """
-    Public config for frontend (local mode).
-    Mirrors the old PHP `/addons/quantdinger/index/getConfig` shape.
+    Get public configuration for frontend including available AI models.
+
+    ---
+    tags:
+      - Market
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     try:
         cfg = load_addon_config()
@@ -193,14 +205,22 @@ def get_public_config():
 
 @market_bp.route('/types', methods=['GET'])
 def get_market_types():
-    """Return supported market types for the add-watchlist modal.
+    """
+    Return supported market types for the add-watchlist modal.
 
-    Visibility is controlled by the centralised :mod:`app.utils.market_visibility`
-    rules — primarily the ``ENABLED_MARKETS`` whitelist, with
-    ``SHOW_CN_STOCK`` / ``SHOW_HK_STOCK`` kept for back-compat. The radar
-    (``/api/global-market/opportunities``) and the Agent API
-    (``/api/agent/v1/markets``) read from the same helper so all three
-    user-facing market lists stay in lock-step.
+    Visibility is controlled by the centralised market_visibility rules (ENABLED_MARKETS
+    whitelist with SHOW_CN_STOCK / SHOW_HK_STOCK kept for back-compat).
+
+    ---
+    tags:
+      - Market
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
     """
     # Keep a stable UX order; CN/HK near US; MOEX last (niche vs crypto/FX/futures).
     desired_order = ['USStock', 'CNStock', 'HKStock', 'Crypto', 'Forex', 'Futures', 'MOEX']
@@ -249,8 +269,18 @@ def get_market_types():
 @market_bp.route('/menuFooterConfig', methods=['GET'])
 def get_menu_footer_config():
     """
-    Compatibility stub for old PHP `getMenuFooterConfig`.
-    Frontend can also hardcode this locally; this endpoint remains for completeness.
+    Get menu footer configuration (contact info, social links, legal links).
+
+    ---
+    tags:
+      - Market
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
     """
     data = {
         'contact': {
@@ -274,8 +304,43 @@ def get_menu_footer_config():
 @market_bp.route('/symbols/search', methods=['GET'])
 def search_symbols():
     """
-    Lightweight symbol search.
-    DB seed first; for Crypto, falls back to exchange market list when DB yields few results.
+    Search symbols by keyword within a given market.
+
+    Uses the local DB seed first; for Crypto, falls back to the CCXT exchange
+    market list when the DB yields fewer than 3 results.
+
+    ---
+    tags:
+      - Market
+    parameters:
+      - name: market
+        in: query
+        required: true
+        schema:
+          type: string
+        description: Market type (e.g. USStock, CNStock, Crypto, Forex, Futures)
+      - name: keyword
+        in: query
+        required: true
+        schema:
+          type: string
+        description: Search keyword (matched against symbol and name)
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 20
+        description: Maximum number of results to return
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     try:
         market = (request.args.get('market') or '').strip()
@@ -353,7 +418,36 @@ def _search_crypto_exchange(keyword: str, limit: int, existing: set) -> list:
 
 @market_bp.route('/symbols/hot', methods=['GET'])
 def get_hot_symbols():
-    """Return a small curated hot list per market (local-only)."""
+    """
+    Return a curated hot-symbol list for the given market.
+
+    ---
+    tags:
+      - Market
+    parameters:
+      - name: market
+        in: query
+        required: true
+        schema:
+          type: string
+        description: Market type (e.g. USStock, CNStock, Crypto, Forex, Futures)
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 10
+        description: Maximum number of hot symbols to return
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     try:
         market = (request.args.get('market') or '').strip()
         limit = int(request.args.get('limit') or 10)
@@ -366,7 +460,29 @@ def get_hot_symbols():
 @market_bp.route('/watchlist/get', methods=['GET'])
 @login_required
 def get_watchlist():
-    """Get watchlist for the current user."""
+    """
+    Get the authenticated user's watchlist.
+
+    Backfills display names for legacy rows whose name field is empty or equals
+    the symbol itself.
+
+    ---
+    tags:
+      - Market
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     try:
         user_id = g.user_id
         _ensure_watchlist_table()
@@ -412,7 +528,54 @@ def get_watchlist():
 @market_bp.route('/watchlist/add', methods=['POST'])
 @login_required
 def add_watchlist():
-    """Add a symbol to watchlist for the current user."""
+    """
+    Add a symbol to the authenticated user's watchlist.
+
+    Validates the (market, symbol) pair, canonicalises Crypto symbols to
+    BASE/QUOTE format, and performs an existence check for equity markets.
+
+    ---
+    tags:
+      - Market
+    security:
+      - BearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - market
+              - symbol
+            properties:
+              market:
+                type: string
+                description: "Market type (e.g. USStock, CNStock, Crypto, Forex, Futures)"
+              symbol:
+                type: string
+                description: "Trading symbol (e.g. AAPL, BTC/USDT, 600519)"
+              name:
+                type: string
+                description: "Optional display name for the symbol"
+    responses:
+      200:
+        description: Symbol added successfully
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      400:
+        description: "Invalid input, implausible market/symbol pair, or symbol not found"
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     try:
         user_id = g.user_id
         data = request.get_json() or {}
@@ -499,15 +662,50 @@ def add_watchlist():
 @market_bp.route('/watchlist/remove', methods=['POST'])
 @login_required
 def remove_watchlist():
-    """Remove a symbol from watchlist for the current user.
+    """
+    Remove a symbol from the authenticated user's watchlist.
 
-    The watchlist table has ``UNIQUE(user_id, market, symbol)`` but a long-
-    standing bug here only matched on ``(user_id, symbol)``, so a removal could
-    in principle wipe rows across markets (e.g. a manually-added ``BTC`` row
-    in CNStock vs Crypto). We now require ``market`` in the request and use
-    it in the ``WHERE`` clause. For Crypto we additionally canonicalise the
-    symbol so the legacy clients still sending ``"BTC"`` resolve to the
-    canonical ``"BTC/USDT"`` row written by the new ``add_watchlist`` logic.
+    For Crypto, the symbol is canonicalised to BASE/QUOTE format so that both
+    legacy bare-base rows (e.g. "BTC") and canonical rows (e.g. "BTC/USDT")
+    are matched.
+
+    ---
+    tags:
+      - Market
+    security:
+      - BearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - symbol
+            properties:
+              market:
+                type: string
+                description: "Market type (e.g. USStock, CNStock, Crypto)"
+              symbol:
+                type: string
+                description: "Trading symbol to remove"
+    responses:
+      200:
+        description: Symbol removed successfully
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      400:
+        description: Missing symbol
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     try:
         user_id = g.user_id
@@ -607,13 +805,27 @@ def get_single_price(market: str, symbol: str) -> dict:
 @login_required
 def get_watchlist_prices():
     """
-    Get realtime prices for the current user's watchlist.
+    Get realtime prices for all symbols in the authenticated user's watchlist.
 
-    Historical contract accepted a `watchlist=[{market,symbol},...]` query
-    parameter, which (combined with no auth) let any caller fan out arbitrary
-    market/symbol combinations to upstream data providers. We now ignore that
-    parameter and read the authenticated user's watchlist straight from the
-    DB. The query param is still parsed for back-compat logging only.
+    Reads the watchlist from the database and fetches prices in parallel with
+    a 30-second timeout.
+
+    ---
+    tags:
+      - Market
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      401:
+        $ref: '#/components/responses/Unauthorized'
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     try:
         user_id = g.user_id
@@ -712,11 +924,39 @@ def get_watchlist_prices():
 @market_bp.route('/price', methods=['GET'])
 def get_price():
     """
-    获取单个标的价格
-    
-    参数:
-        market: 市场类型
-        symbol: 交易标的
+    Get realtime price for a single symbol.
+
+    ---
+    tags:
+      - Market
+    parameters:
+      - name: market
+        in: query
+        required: true
+        schema:
+          type: string
+        description: Market type (e.g. USStock, Crypto, Forex)
+      - name: symbol
+        in: query
+        required: true
+        schema:
+          type: string
+        description: Trading symbol (e.g. AAPL, BTC/USDT)
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      400:
+        description: Missing market or symbol parameter
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     try:
         market = request.args.get('market', '')
@@ -749,22 +989,45 @@ def get_price():
 @market_bp.route('/stock/name', methods=['POST'])
 def get_stock_name():
     """
-    获取股票名称
-    
-    请求体:
-    {
-        "market": "USStock",
-        "symbol": "AAPL"
-    }
-    
-    响应:
-    {
-        "code": 1,
-        "msg": "success",
-        "data": {
-            "name": "Apple Inc."
-        }
-    }
+    Resolve the display name for a given market and symbol.
+
+    Uses a 1-day cache. For US stocks queries yfinance, for Crypto returns the
+    trading pair format, and for Forex/Futures uses a built-in name map.
+
+    ---
+    tags:
+      - Market
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - market
+              - symbol
+            properties:
+              market:
+                type: string
+                description: "Market type (e.g. USStock, Crypto, Forex, Futures)"
+              symbol:
+                type: string
+                description: "Trading symbol (e.g. AAPL, BTC/USDT, XAUUSD)"
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      400:
+        description: Missing market or symbol parameter
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResponseEnvelope'
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     try:
         data = request.get_json()

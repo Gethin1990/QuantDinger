@@ -19,6 +19,30 @@ def health():
 
     Useful for health checks from monitoring tools and from agent SDKs that
     want to confirm the gateway is reachable before issuing real calls.
+
+    ---
+    tags:
+      - Agent V1
+    responses:
+      200:
+        description: Service is healthy
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                service:
+                  type: string
+                  example: quantdinger-agent-gateway
+                version:
+                  type: string
+                  example: v1
+                status:
+                  type: string
+                  example: ok
+                timestamp:
+                  type: string
+                  format: date-time
     """
     return jsonify({
         "service": "quantdinger-agent-gateway",
@@ -36,6 +60,23 @@ def whoami():
 
     Lets agents self-discover scopes / market allowlists without guessing.
     Secrets (token hash, etc.) are never returned.
+
+    Requires agent token with R scope.
+
+    ---
+    tags:
+      - Agent V1
+    responses:
+      200:
+        description: Token identity and capabilities
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentResponseEnvelope'
+      401:
+        description: Agent token required
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     token = current_token()
     return envelope({

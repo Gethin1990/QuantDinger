@@ -38,7 +38,35 @@ def _project(row: dict | None) -> dict | None:
 @agent_v1_bp.route("/strategies", methods=["GET"])
 @agent_required(SCOPE_R)
 def list_strategies():
-    """List the calling tenant's strategies (compact projection)."""
+    """List the calling tenant's strategies (compact projection).
+
+    Requires agent token with R scope.
+
+    ---
+    tags:
+      - Agent V1
+    parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 50
+        description: Maximum number of strategies to return
+    responses:
+      200:
+        description: List of strategies
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentResponseEnvelope'
+      401:
+        description: Agent token required
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     try:
         rows = _strategy_service.list_strategies(user_id=current_user_id()) or []
     except Exception as exc:
@@ -52,7 +80,38 @@ def list_strategies():
 @agent_v1_bp.route("/strategies/<int:strategy_id>", methods=["GET"])
 @agent_required(SCOPE_R)
 def get_strategy(strategy_id: int):
-    """Tenant-scoped strategy lookup."""
+    """Tenant-scoped strategy lookup.
+
+    Requires agent token with R scope.
+
+    ---
+    tags:
+      - Agent V1
+    parameters:
+      - name: strategy_id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: Strategy ID
+    responses:
+      200:
+        description: Strategy details
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentResponseEnvelope'
+      401:
+        description: Agent token required
+      404:
+        description: Strategy not found
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentErrorResponse'
+      500:
+        $ref: '#/components/responses/ServerError'
+    """
     try:
         row = _strategy_service.get_strategy(strategy_id, user_id=current_user_id())
     except Exception as exc:
@@ -70,6 +129,59 @@ def create_strategy():
 
     Request body mirrors `StrategyService.create_strategy` payload, minus
     `user_id` (always overridden to the token's tenant for safety).
+
+    Requires agent token with W scope.
+
+    ---
+    tags:
+      - Agent V1
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - strategy_name
+            properties:
+              strategy_name:
+                type: string
+                description: Name of the strategy
+              strategy_type:
+                type: string
+              market_category:
+                type: string
+              symbol:
+                type: string
+              timeframe:
+                type: string
+              initial_capital:
+                type: number
+              leverage:
+                type: integer
+              market_type:
+                type: string
+              strategy_mode:
+                type: string
+              execution_mode:
+                type: string
+    responses:
+      200:
+        description: Strategy created
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentResponseEnvelope'
+      400:
+        description: Invalid input
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentErrorResponse'
+      401:
+        description: Agent token required
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     body, err = get_json_or_400()
     if err:
@@ -101,6 +213,65 @@ def update_strategy(strategy_id: int):
     """Tenant-scoped patch.  Status changes that flip a strategy to `running`
     are rejected unless the token also has T scope; agents must explicitly
     request live execution scope to start strategies.
+
+    Requires agent token with W scope.
+
+    ---
+    tags:
+      - Agent V1
+    parameters:
+      - name: strategy_id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: Strategy ID to update
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              strategy_name:
+                type: string
+              status:
+                type: string
+                enum: [stopped, running, paused]
+                description: Setting to 'running' requires T scope on the token
+              initial_capital:
+                type: number
+              leverage:
+                type: integer
+    responses:
+      200:
+        description: Strategy updated
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentResponseEnvelope'
+      400:
+        description: Invalid input
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentErrorResponse'
+      401:
+        description: Agent token required
+      403:
+        description: T scope required to activate strategy
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentErrorResponse'
+      404:
+        description: Strategy not found or no fields updated
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentErrorResponse'
+      500:
+        $ref: '#/components/responses/ServerError'
     """
     body, err = get_json_or_400()
     if err:

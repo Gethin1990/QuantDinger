@@ -633,7 +633,9 @@ Yes—see **[QuantDinger-Mobile](https://github.com/brokermr810/QuantDinger-Mobi
 
 ## Exchange Partner Links
 
-The following links are available in-app under **Profile -> Open account** and may qualify users for trading-fee rebates depending on venue policies.
+The following links are available in-app under **Profile → Open account** or **Broker Accounts → Open account**, and may qualify users for trading-fee rebates depending on venue policies.
+
+### Crypto exchanges (API keys)
 
 | Exchange | Signup Link |
 |----------|-------------|
@@ -641,8 +643,16 @@ The following links are available in-app under **Profile -> Open account** and m
 | Bitget | [Register](https://partner.hdmune.cn/bg/7r4xz8kd) |
 | Bybit | [Register](https://partner.bybit.com/b/DINGER) |
 | OKX | [Register](https://www.xqmnobxky.com/join/QUANTDINGER) |
-| Gate.io | [Register](https://www.gateport.company/share/DINGER) |
+| Gate.io | [Register](https://www.gateport.business/share/DINGER) |
 | HTX | [Register](https://www.htx.com/invite/zh-cn/1f?invite_code=dinger) |
+
+### Forex / CFD — TMGM (MetaTrader 5)
+
+| Broker | Signup Link |
+|--------|-------------|
+| TMGM (MT5) | [Register](https://portal.tmgm.com/register?node=MTM0Mzc5&language=en) |
+
+After opening a TMGM account, install MetaTrader 5 and bind your server/login under **Profile → Exchange** or **Broker Accounts**.
 
 ## License and Commercial Terms
 

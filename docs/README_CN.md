@@ -415,6 +415,8 @@ docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
 
 AI 分析、自然语言生成代码等需至少配置一个 LLM 供应商。打开 `backend_api_python/env.example` 中的 **AI / LLM** 小节，将对应变量复制到你的 `.env`（例如 `LLM_PROVIDER` + `OPENROUTER_API_KEY`）。修改后需**重启 backend 容器**。
 
+现货全仓平仓若因手续费导致「可卖数量略小于持仓」，可在管理后台 **设置 → 实盘交易（Live Trading）** 调整 `SPOT_CLOSE_SAFETY_RATIO`（平仓安全系数，默认 `0.998`）与 `SPOT_OPEN_QUOTE_BUFFER`（开仓占用 USDT 比例，默认 `0.995`）；也可直接写入 `backend_api_python/.env`。保存设置后会热加载，无需重建镜像。
+
 ### 7）Windows 补充说明
 
 请使用 **Docker Desktop**，并在仓库根目录用 **PowerShell** 执行与上文「两分钟试用」中 Windows 相同的步骤。若 `py` 不在 PATH，请改用 `python` 或 `python3` 生成密钥；保存 `.env` 时建议使用 UTF-8，避免编辑器破坏换行。
@@ -619,7 +621,9 @@ QuantDinger/
 
 ## 交易所合作注册链接
 
-这些链接也可以在应用内通过 **个人中心 -> 开户** 查看。是否享受手续费返佣，以各交易所规则为准。
+这些链接也可以在应用内通过 **个人中心 → 立即开户** 或 **实盘券商账户 → 立即开户** 查看。是否享受手续费返佣，以各平台规则为准。
+
+### 加密货币交易所（API 密钥）
 
 | 交易所 | 注册链接 |
 |--------|----------|
@@ -627,8 +631,16 @@ QuantDinger/
 | Bitget | [注册开户](https://partner.hdmune.cn/bg/7r4xz8kd) |
 | Bybit | [注册开户](https://partner.bybit.com/b/DINGER) |
 | OKX | [注册开户](https://www.xqmnobxky.com/join/QUANTDINGER) |
-| Gate.io | [注册开户](https://www.gateport.company/share/DINGER) |
+| Gate.io | [注册开户](https://www.gateport.business/share/DINGER) |
 | HTX | [注册开户](https://www.htx.com/invite/zh-cn/1f?invite_code=dinger) |
+
+### 外汇 / CFD — TMGM（MetaTrader 5）
+
+| 券商 | 注册链接 |
+|------|----------|
+| TMGM（MT5） | [注册开户](https://portal.tmgm.com/register?node=MTM0Mzc5&language=en) |
+
+在 TMGM 完成开户后，请安装 MT5，并在 **个人中心 → 交易所配置** 或 **实盘券商账户** 中填写服务器与账号。
 
 ## 许可与商业说明
 

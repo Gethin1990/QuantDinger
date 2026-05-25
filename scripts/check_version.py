@@ -21,6 +21,13 @@ SEMVER = r"\d+\.\d+\.\d+"
 # The captured group is compared against the VERSION file.
 CHECKS: list[tuple[str, str]] = [
     ("backend_api_python/app/_version.py", rf'APP_VERSION\s*=\s*"({SEMVER})"'),
+    ("QuantDinger-Vue-src/package.json", rf'"version"\s*:\s*"({SEMVER})"'),
+    ("QuantDinger-Vue-src/src/config/defaultSettings.js", rf"appVersion:\s*'({SEMVER})'"),
+    ("QuantDinger-Vue-src/src/store/modules/brand.js", rf"app_version:\s*'({SEMVER})'"),
+    (
+        "QuantDinger-Vue-src/src/layouts/BasicLayout.vue",
+        rf"defaultSettings\.appVersion \|\| '({SEMVER})'",
+    ),
     # README shields.io badges are dynamic (GitHub release endpoint) and not checked here.
     # README `quantdinger-frontend:X.Y.Z` mentions are not checked — FE and BE
     # are versioned independently and the compose default is `latest`.

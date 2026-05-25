@@ -3000,13 +3000,17 @@ class TradingExecutor:
                      # Bot scripts pass amount as absolute USDT notional, not ratio.
                      usdt_notional = float(position_size)
                      if market_type == 'spot':
+                         from app.services.live_trading.spot_sizing import scale_spot_open_notional
+                         usdt_notional = scale_spot_open_notional(usdt_notional)
                          amount = usdt_notional / current_price
                      else:
                          amount = (usdt_notional * leverage) / current_price
                  else:
                      position_ratio = self._to_ratio(position_size, default=0.05)
                      if market_type == 'spot':
-                         amount = available_capital * position_ratio / current_price
+                         from app.services.live_trading.spot_sizing import scale_spot_open_notional
+                         quote_stake = scale_spot_open_notional(available_capital * position_ratio)
+                         amount = quote_stake / current_price
                      else:
                          amount = (available_capital * position_ratio * leverage) / current_price
 

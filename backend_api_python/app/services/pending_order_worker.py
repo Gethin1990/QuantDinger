@@ -1462,6 +1462,23 @@ class PendingOrderWorker:
                 logger.warning(f"Failed to query position for close adjustment: pending_id={order_id}, err={e}")
                 phases["pos_query_error"] = str(e)
 
+        # Spot close: cap to exchange free base (fees often make DB size > sellable free).
+        if reduce_only and market_type == "spot" and side == "sell":
+            try:
+                from app.services.live_trading.spot_sizing import clamp_spot_close_quantity
+
+                new_amt, spot_meta = clamp_spot_close_quantity(
+                    client, symbol=str(symbol), requested_qty=float(amount or 0.0)
+                )
+                if spot_meta.get("adjusted"):
+                    phases["spot_close_adjustment"] = spot_meta
+                amount = new_amt
+            except Exception as e:
+                logger.warning(
+                    "Spot close amount adjustment failed: pending_id=%s, err=%s", order_id, e
+                )
+                phases["spot_close_adjust_error"] = str(e)
+
         # Decide if we should use limit-first flow.
         use_limit_first = order_mode in ("maker", "limit", "limit_first", "maker_then_market")
 

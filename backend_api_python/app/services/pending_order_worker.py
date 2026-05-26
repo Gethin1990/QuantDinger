@@ -19,6 +19,7 @@ from app.services.exchange_execution import load_strategy_configs, resolve_excha
 from app.services.live_trading.execution import place_order_from_signal
 from app.services.live_trading.factory import create_client
 from app.services.live_trading.records import apply_fill_to_local_position, record_trade
+from app.utils.pnl import calc_notional_value
 from app.services.live_trading.base import LiveTradingError
 from app.services.live_trading.binance import BinanceFuturesClient
 from app.services.live_trading.binance_spot import BinanceSpotClient
@@ -1012,13 +1013,14 @@ class PendingOrderWorker:
             if (not notification_config) and strategy_id:
                 notification_config = self._load_notification_config(int(strategy_id))
 
+            stake_quote = calc_notional_value(float(price or 0.0), float(amount or 0.0)) or float(amount or 0.0)
             results = self._notifier.notify_signal(
                 strategy_id=int(strategy_id or 0),
                 strategy_name=str(strategy_name or ""),
                 symbol=str(symbol or ""),
                 signal_type=str(signal_type or ""),
                 price=float(price or 0.0),
-                stake_amount=float(amount or 0.0),
+                stake_amount=float(stake_quote),
                 direction=str(direction or "long"),
                 notification_config=notification_config if isinstance(notification_config, dict) else {},
                 extra={"pending_order_id": order_id, "mode": mode},
@@ -1135,13 +1137,14 @@ class PendingOrderWorker:
                 px = float(price_hint) if (price_hint is not None and float(price_hint or 0.0) > 0) else ref0
                 amt = float(amount_hint) if (amount_hint is not None and float(amount_hint or 0.0) > 0) else amt0
 
+                stake_quote = calc_notional_value(float(px or 0.0), float(amt or 0.0)) or float(amt or 0.0)
                 results = self._notifier.notify_signal(
                     strategy_id=int(strategy_id),
                     strategy_name=str(strategy_name or ""),
                     symbol=str(sym0 or ""),
                     signal_type=str(sig0 or ""),
                     price=float(px or 0.0),
-                    stake_amount=float(amt or 0.0),
+                    stake_amount=float(stake_quote),
                     direction=("short" if "short" in str(sig0 or "").lower() else "long"),
                     notification_config=notification_config if isinstance(notification_config, dict) else {},
                     extra={

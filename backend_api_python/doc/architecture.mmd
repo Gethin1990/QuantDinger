@@ -1,0 +1,193 @@
+# QuantDinger Backend Architecture
+
+```mermaid
+graph TB
+    subgraph Clients["客户端"]
+        WebUI["Web 前端"]
+        ExternalAgent["外部 AI Agent<br/>(MCP / 自动化)"]
+    end
+
+    subgraph API["Flask API 层 — app/routes/"]
+        direction TB
+        subgraph HumanRoutes["人类用户路由"]
+            Auth["auth.py — 登录/注册"]
+            Market["market.py — 行情查询"]
+            KlineRoute["kline.py — K线数据"]
+            StrategyRoute["strategy.py — 策略 CRUD"]
+            BacktestRoute["backtest.py — 回测"]
+            ExperimentRoute["experiment.py — 实验"]
+            FastAnalysisRoute["fast_analysis.py — AI 快速分析"]
+            GlobalMarket["global_market.py — 宏观数据"]
+            IndicatorRoute["indicator.py — 指标管理"]
+            PortfolioRoute["portfolio.py — 持仓"]
+            Dashboard["dashboard.py — 仪表盘"]
+            QuickTradeRoute["quick_trade.py — 快速交易"]
+            BillingRoute["billing.py — 账单"]
+            Community["community.py — 社区"]
+            Settings["settings.py — 设置"]
+            Credentials["credentials.py — 凭据管理"]
+        end
+
+        subgraph AgentRoutes["Agent Gateway — agent_v1/"]
+            AgentMarkets["markets.py — 行情"]
+            AgentStrategies["strategies.py — 策略"]
+            AgentBacktests["backtests.py — 回测"]
+            AgentExperiments["experiments.py — 实验"]
+            AgentPortfolio["portfolio.py — 持仓"]
+            AgentQuickTrade["quick_trade.py — 下单"]
+            AgentJobs["jobs.py — 异步任务"]
+            AgentAdmin["admin.py — 管理"]
+            AgentHealth["health.py — 健康检查"]
+        end
+    end
+
+    subgraph Services["业务服务层 — app/services/"]
+        direction TB
+        LLM["llm.py — LLM 多 Provider 调用"]
+        FastAnalysisSvc["fast_analysis.py — AI 综合分析"]
+        MarketCollector["market_data_collector.py — 数据采集"]
+        BacktestSvc["backtest.py — 回测引擎"]
+        ExperimentSvc["experiment/ — 实验管道<br/>(runner / evolution / optimizers)"]
+        StrategySvc["strategy.py — 策略管理"]
+        StrategyCompiler["strategy_compiler.py — 策略编译"]
+        StrategyRuntime["strategy_script_runtime.py — 策略运行时"]
+        IndicatorTranslator["indicator_translator.py — 指标翻译"]
+        BotDetect["ai_bot_symbol_detect.py — 交易对识别"]
+        PortfolioMonitor["portfolio_monitor.py — 持仓监控"]
+        SignalNotifier["signal_notifier.py — 信号通知"]
+        TradingExecutor["trading_executor.py — 交易执行"]
+        Search["search.py — 搜索"]
+        KlineSvc["kline.py — K线服务"]
+
+        subgraph BrokerClients["券商/交易所客户端"]
+            Alpaca["alpaca_trading/"]
+            IBKR["ibkr_trading/"]
+            MT5["mt5_trading/"]
+            LiveTrading["live_trading/<br/>Binance / OKX / Bybit<br/>Gate / HTX / KuCoin<br/>Kraken / Bitget / DeepCoin<br/>Coinbase"]
+        end
+
+        subgraph OtherSvc["其他服务"]
+            BotScripts["bot_scripts/ — 网格机器人"]
+            USDTPayment["usdt_payment/ — USDT 支付"]
+            BillingSvc["billing_service.py"]
+            EmailSvc["email_service.py"]
+            OAuthSvc["oauth_service.py"]
+            SecuritySvc["security_service.py"]
+            CommunitySvc["community_service.py"]
+        end
+    end
+
+    subgraph DataProviders["数据提供层 — app/data_providers/"]
+        Sentiment["sentiment.py — VIX / DXY / 恐慌指数"]
+        CryptoDP["crypto.py — 加密货币"]
+        ForexDP["forex.py — 外汇"]
+        Indices["indices.py — 指数"]
+        Commodities["commodities.py — 大宗商品"]
+        News["news.py — 新闻"]
+        Heatmap["heatmap.py — 热力图"]
+        Opportunities["opportunities.py — 机会发现"]
+        AdanosSentiment["adanos_sentiment.py — 情绪分析"]
+    end
+
+    subgraph DataSources["数据源适配层 — app/data_sources/"]
+        Factory["factory.py — 数据源工厂"]
+        USStock["us_stock.py — 美股"]
+        CNStock["cn_stock.py — A股"]
+        HKStock["hk_stock.py — 港股"]
+        CryptoDS["crypto.py — 加密货币"]
+        ForexDS["forex.py — 外汇"]
+        FuturesDS["futures.py — 期货"]
+        MOEXDS["moex.py — 莫斯科交易所"]
+        TencentDS["tencent.py — 腾讯数据"]
+        CacheMgr["cache_manager.py — 缓存管理"]
+        RateLimiter["rate_limiter.py — 限流"]
+        CircuitBreaker["circuit_breaker.py — 熔断"]
+    end
+
+    subgraph Utils["基础设施 — app/utils/"]
+        DB["db.py / db_postgres.py — PostgreSQL"]
+        Cache["cache.py — 缓存"]
+        AuthUtil["auth.py — JWT 认证"]
+        AgentAuth["agent_auth.py — Agent Token 认证"]
+        AgentJobs["agent_jobs.py — 异步任务执行器"]
+        Logger["logger.py — 日志"]
+        ConfigLoader["config_loader.py"]
+        HTTP["http.py — HTTP 工具"]
+    end
+
+    subgraph External["外部数据/服务"]
+        YFinance["yfinance"]
+        AKShare["akshare"]
+        Tushare["tushare"]
+        CCXT["ccxt"]
+        OpenRouter["OpenRouter"]
+        OpenAIAPI["OpenAI"]
+        Gemini["Google Gemini"]
+        DeepSeek["DeepSeek"]
+        MiniMax["MiniMax"]
+        Exchanges["交易所 API<br/>Binance/OKX/Bybit..."]
+        AlpacaAPI["Alpaca API"]
+        IBKRAPI["IBKR API"]
+        MT5API["MetaTrader 5"]
+    end
+
+    subgraph Storage["存储"]
+        PostgreSQL[("PostgreSQL<br/>策略 / 回测 / 持仓<br/>Agent 审计 / 任务")]
+    end
+
+    %% 客户端连接
+    WebUI -->|JWT| HumanRoutes
+    ExternalAgent -->|Agent Token| AgentRoutes
+
+    %% 路由到服务
+    HumanRoutes --> Services
+    AgentRoutes --> Services
+    AgentRoutes -->|认证/审计| AgentAuth
+    AgentRoutes -->|异步任务| AgentJobs
+
+    %% 服务到数据
+    Services --> DataProviders
+    Services --> DataSources
+    DataProviders --> DataSources
+    DataSources --> Factory
+    Factory --> External
+
+    %% LLM 连接
+    LLM --> OpenRouter & OpenAIAPI & Gemini & DeepSeek & MiniMax
+    FastAnalysisSvc --> LLM
+    BotDetect --> FastAnalysisSvc
+    ExperimentSvc --> LLM
+
+    %% 券商连接
+    BrokerClients --> Exchanges & AlpacaAPI & IBKRAPI & MT5API
+
+    %% 数据源连接
+    DataSources --> YFinance & AKShare & Tushare & CCXT
+
+    %% 存储连接
+    Services --> PostgreSQL
+    Utils --> PostgreSQL
+
+    %% 工具层
+    Services --> Utils
+```
+
+## 层次说明
+
+| 层 | 目录 | 职责 |
+|---|---|---|
+| API 层 | `app/routes/` | HTTP 路由，人类 JWT + Agent Token 双通道 |
+| 业务服务层 | `app/services/` | 策略、回测、AI 分析、交易执行、信号通知 |
+| 数据提供层 | `app/data_providers/` | 聚合宏观指标（VIX/DXY）、行情、情绪、新闻 |
+| 数据源适配层 | `app/data_sources/` | 工厂模式对接 yfinance / akshare / tushare / ccxt，带缓存/限流/熔断 |
+| 基础设施 | `app/utils/` | PostgreSQL、认证、异步任务池、日志 |
+
+## 交易执行
+
+- **美股**: Alpaca / IBKR
+- **加密货币**: live_trading 下 Binance / OKX / Bybit / Gate / HTX / KuCoin / Kraken / Bitget / DeepCoin / Coinbase
+- **外汇/期货**: MetaTrader 5
+
+## AI 能力
+
+LLM 服务统一封装，支持 6 个 Provider 自动降级：OpenRouter → OpenAI → Google Gemini → DeepSeek → MiniMax → 自建接口。

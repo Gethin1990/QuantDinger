@@ -11,14 +11,14 @@ logger = get_logger(__name__)
 
 # Canonical pair definitions shared by all fetchers
 FOREX_PAIRS = [
-    {"td": "EUR/USD", "yf": "EURUSD=X", "tiingo": "eurusd", "name_cn": "欧元/美元", "name_en": "EUR/USD", "base": "EUR", "quote": "USD"},
-    {"td": "GBP/USD", "yf": "GBPUSD=X", "tiingo": "gbpusd", "name_cn": "英镑/美元", "name_en": "GBP/USD", "base": "GBP", "quote": "USD"},
-    {"td": "USD/JPY", "yf": "USDJPY=X", "tiingo": "usdjpy", "name_cn": "美元/日元", "name_en": "USD/JPY", "base": "USD", "quote": "JPY"},
     {"td": "USD/CNH", "yf": "USDCNH=X", "tiingo": "usdcnh", "name_cn": "美元/离岸人民币", "name_en": "USD/CNH", "base": "USD", "quote": "CNH"},
-    {"td": "AUD/USD", "yf": "AUDUSD=X", "tiingo": "audusd", "name_cn": "澳元/美元", "name_en": "AUD/USD", "base": "AUD", "quote": "USD"},
+    {"td": "USD/AUD", "yf": "AUDUSD=X", "tiingo": "audusd", "name_cn": "美元/澳元", "name_en": "USD/AUD", "base": "USD", "quote": "AUD"},
+    {"td": "USD/EUR", "yf": "EURUSD=X", "tiingo": "eurusd", "name_cn": "美元/欧元", "name_en": "USD/EUR", "base": "USD", "quote": "EUR"},
+    {"td": "USD/GBP", "yf": "GBPUSD=X", "tiingo": "gbpusd", "name_cn": "美元/英镑", "name_en": "USD/GBP", "base": "USD", "quote": "GBP"},
+    {"td": "USD/JPY", "yf": "USDJPY=X", "tiingo": "usdjpy", "name_cn": "美元/日元", "name_en": "USD/JPY", "base": "USD", "quote": "JPY"},
     {"td": "USD/CAD", "yf": "USDCAD=X", "tiingo": "usdcad", "name_cn": "美元/加元", "name_en": "USD/CAD", "base": "USD", "quote": "CAD"},
     {"td": "USD/CHF", "yf": "USDCHF=X", "tiingo": "usdchf", "name_cn": "美元/瑞郎", "name_en": "USD/CHF", "base": "USD", "quote": "CHF"},
-    {"td": "NZD/USD", "yf": "NZDUSD=X", "tiingo": "nzdusd", "name_cn": "纽元/美元", "name_en": "NZD/USD", "base": "NZD", "quote": "USD"},
+    {"td": "USD/NZD", "yf": "NZDUSD=X", "tiingo": "nzdusd", "name_cn": "美元/纽元", "name_en": "USD/NZD", "base": "USD", "quote": "NZD"},
 ]
 
 

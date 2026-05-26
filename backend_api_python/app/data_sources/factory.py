@@ -120,10 +120,10 @@ class DataSourceFactory:
     @classmethod
     def _create_source(cls, market: str) -> BaseDataSource:
         """创建数据源实例"""
-        if market == 'Crypto':
-            from app.data_sources.crypto import CryptoDataSource
-            return CryptoDataSource()
-        elif market == 'CNStock':
+        # if market == 'Crypto':
+        #     from app.data_sources.crypto import CryptoDataSource
+        #     return CryptoDataSource()
+        if market == 'CNStock':
             from app.data_sources.cn_stock import CNStockDataSource
             return CNStockDataSource()
         elif market == 'HKStock':

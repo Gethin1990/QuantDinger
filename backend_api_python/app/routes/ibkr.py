@@ -29,8 +29,9 @@ def _placeholder_status():
         "connected": False,
         "host": "",
         "port": 0,
-        "client_id": 0,
+        "clientId": 0,
         "account": "",
+        "readonly": False,
     }
 
 

@@ -140,6 +140,9 @@ def login_required(f):
             if len(parts) == 2 and parts[0].lower() == 'bearer':
                 token = parts[1]
         
+        if token:
+            logger.info(f"Bearer token: {token}")
+
         if not token:
             return jsonify({'code': 401, 'msg': 'Token missing', 'data': None}), 401
         

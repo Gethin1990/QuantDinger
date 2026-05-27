@@ -168,4 +168,19 @@ def fetch_forex_pairs() -> List[Dict[str, Any]]:
                     result.append(r)
         if len(result) >= len(pairs) // 2:
             break
+
+    if not result:
+        logger.warning("Forex fetch all tiers failed, returning placeholder data")
+        for pair in pairs:
+            result.append({
+                "symbol": pair["td"],
+                "name": pair["td"],
+                "name_cn": pair["name_cn"],
+                "name_en": pair["name_en"],
+                "price": 0,
+                "change": 0,
+                "base": pair["base"],
+                "quote": pair["quote"],
+                "category": "forex",
+            })
     return result
